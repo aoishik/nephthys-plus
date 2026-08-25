@@ -19,6 +19,7 @@ from nephthys.events.message.send_backend_message import backend_message_blocks
 from nephthys.events.message.send_backend_message import backend_message_fallback_text
 from nephthys.events.message.send_backend_message import send_backend_message
 from nephthys.macros import run_macro
+from nephthys.utils import prometheus
 from nephthys.utils.env import env
 from nephthys.utils.logging import send_heartbeat
 from nephthys.utils.performance import perf_timer
@@ -43,12 +44,8 @@ TICKET_CATEGORY_GENERATION_DURATION = Histogram(
 
 async def handle_message_sent_to_channel(event: Dict[str, Any], client: AsyncWebClient):
     """Tell a non-helper off because they sent a thread message with the 'send to channel' box checked."""
-    await client.chat_delete(
-        channel=event["channel"],
-        ts=event["ts"],
-        as_user=True,
-        token=env.slack_user_token,
-        broadcast_delete=True,
+    await prometheus.delete_message(
+        ts=event["ts"], reason="Non-helper broadcast a thread reply to the channel"
     )
     await client.chat_postEphemeral(
         channel=event["channel"],

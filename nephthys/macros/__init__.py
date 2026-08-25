@@ -20,6 +20,7 @@ from nephthys.macros.trigger_daily_stats import DailyStats
 from nephthys.macros.trigger_fulfillment_reminder import FulfillmentReminder
 from nephthys.macros.types import Macro
 from nephthys.macros.types import ReplyMacro
+from nephthys.utils import prometheus
 from nephthys.utils.env import env
 from nephthys.utils.logging import send_heartbeat
 
@@ -88,9 +89,7 @@ async def run_macro(
         new_kwargs = kwargs.copy()
         new_kwargs["text"] = text
         await target_macro.run(ticket, helper, **new_kwargs)
-        await env.slack_client.chat_delete(
-            channel=env.slack_help_channel, ts=macro_ts, token=env.slack_user_token
-        )
+        await prometheus.delete_message(ts=macro_ts, reason=f"?{name} macro trigger")
         return True
 
     await error_msg(f"`?{name}` is not a valid macro.")

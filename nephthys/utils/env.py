@@ -89,6 +89,10 @@ class Environment:
         self.slack_app_token = os.environ.get("SLACK_APP_TOKEN")
 
         self.uptime_url = os.environ.get("UPTIME_URL")
+        self.prometheus_api_key = os.environ.get("PROMETHEUS_API_KEY", "unset")
+        self.prometheus_base_url = os.environ.get(
+            "PROMETHEUS_BASE_URL", "https://prometheus.hackclub.com"
+        ).rstrip("/")
         self.hack_club_ai_api_key = os.environ.get("HACK_CLUB_AI_API_KEY")
         self.ai_base_url = os.environ.get(
             "HACK_CLUB_AI_BASE_URL", "https://ai.hackclub.com/proxy/v1"
