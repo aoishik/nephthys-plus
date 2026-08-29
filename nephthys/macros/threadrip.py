@@ -10,16 +10,10 @@ class ThreadRip(Macro):
     async def run(self, ticket, helper, **kwargs):
         """
         Like ?thread, but nukes the whole thread: deletes the original ticket
-        message and every reply via the Prometheus moderation API.
+        message and every reply.
         """
-        replies = await env.slack_client.conversations_replies(
-            channel=env.slack_help_channel, ts=ticket.msg_ts
+        await prometheus.delete_thread(
+            thread_ts=ticket.msg_ts,
+            channel=env.slack_help_channel,
+            reason=f"?threadrip by {helper.slack_id}",
         )
-        # Delete replies first, root message last (deleting root can orphan the fetch)
-        for msg in reversed(replies.get("messages", [])):
-            if "ts" in msg:
-                await prometheus.delete_message(
-                    ts=msg["ts"],
-                    channel=env.slack_help_channel,
-                    reason=f"?threadrip by {helper.slack_id}",
-                )

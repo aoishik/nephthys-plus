@@ -38,3 +38,34 @@ async def delete_message(ts: str, channel: str, reason: str) -> bool:
     except Exception as e:
         logging.error(f"chat_delete failed for ts={ts} in {channel}: {e}")
         return False
+
+
+async def delete_thread(thread_ts: str, channel: str, reason: str) -> bool:
+    """Delete a whole thread: the root message and every reply.
+
+    Uses Prometheus' single thread endpoint (one audit log line) when an API
+    key is set, otherwise falls back to deleting each message individually.
+    """
+    if env.prometheus_api_key:
+        async with env.session.post(
+            f"{env.prometheus_base_url}/api/v1/threads/delete",
+            headers={"Authorization": f"Bearer {env.prometheus_api_key}"},
+            json={"thread_ts": thread_ts, "reason": reason},
+        ) as resp:
+            body = await resp.json()
+            if resp.status != 200 or not body.get("ok"):
+                logging.error(
+                    f"Prometheus failed to delete thread ts={thread_ts}: {body}"
+                )
+                return False
+            return True
+
+    replies = await env.slack_client.conversations_replies(
+        channel=channel, ts=thread_ts
+    )
+    ok = True
+    # Replies first, root last: deleting the root can orphan the reply fetch.
+    for msg in reversed(replies.get("messages", [])):
+        if "ts" in msg and not await delete_message(msg["ts"], channel, reason):
+            ok = False
+    return ok
