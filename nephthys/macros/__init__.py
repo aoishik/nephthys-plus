@@ -16,6 +16,7 @@ from nephthys.macros.shipwrights import Shipwrights
 from nephthys.macros.stale import Stale
 from nephthys.macros.team_tag import TeamTag
 from nephthys.macros.thread import Thread
+from nephthys.macros.threadrip import ThreadRip
 from nephthys.macros.trigger_daily_stats import DailyStats
 from nephthys.macros.trigger_fulfillment_reminder import FulfillmentReminder
 from nephthys.macros.types import Macro
@@ -32,6 +33,7 @@ macro_list: list[type[Macro]] = [
     Fraud,
     Thread,
     Forward,
+    ThreadRip,
     Reopen,
     DailyStats,
     FulfillmentReminder,
