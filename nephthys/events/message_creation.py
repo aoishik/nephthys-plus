@@ -45,7 +45,9 @@ TICKET_CATEGORY_GENERATION_DURATION = Histogram(
 async def handle_message_sent_to_channel(event: Dict[str, Any], client: AsyncWebClient):
     """Tell a non-helper off because they sent a thread message with the 'send to channel' box checked."""
     await prometheus.delete_message(
-        ts=event["ts"], reason="Non-helper broadcast a thread reply to the channel"
+        ts=event["ts"],
+        channel=event["channel"],
+        reason="Non-helper broadcast a thread reply to the channel",
     )
     await client.chat_postEphemeral(
         channel=event["channel"],

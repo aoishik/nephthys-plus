@@ -19,5 +19,7 @@ class ThreadRip(Macro):
         for msg in reversed(replies.get("messages", [])):
             if "ts" in msg:
                 await prometheus.delete_message(
-                    ts=msg["ts"], reason=f"?threadrip by {helper.slack_id}"
+                    ts=msg["ts"],
+                    channel=env.slack_help_channel,
+                    reason=f"?threadrip by {helper.slack_id}",
                 )
