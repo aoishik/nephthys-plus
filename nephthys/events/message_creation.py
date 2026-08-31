@@ -364,7 +364,7 @@ async def on_message(event: Dict[str, Any], client: AsyncWebClient):
 
     if "subtype" in event and event["subtype"] not in ALLOWED_SUBTYPES:
         return
-    if "bot_id" in event:
+    if "bot_id" in event and not (event.get("user") and event.get("thread_ts")):
         logging.info(f"Ignoring bot message from {event['bot_id']}")
         return
 
