@@ -29,19 +29,28 @@ These should always be configured.
 | `APP_TITLE` | Required | A title to be shown to helpers at the top of the App Home, and in the Lobby | _N/A_ |
 | `BASE_URL` | Required | Public HTTPS URL that the bot's web server is accessible from | _N/A_ |
 
-## AI (Hack Club AI)
+## AI provider
 
-It is highly recommended to configure a LLM provider, which is used to generate ticket titles and categorise tickets.
+It is highly recommended to configure an AI provider, which is used to generate ticket titles and categories using an LLM.
 
-The default provider is [Hack Club AI](https://ai.hackclub.com/). If you're not a Hack Clubber, you can specify a different OpenRouter-compatible or OpenAI-compatible endpoint for API requests.
+Any OpenAI-compatible API works. The default is [Hack Club AI](https://ai.hackclub.com/), which is free for Hack Clubbers ([create an API key](https://ai.hackclub.com/keys)). If you're over 18, point `AI_BASE_URL` at a different provider.
 
-If you don't wish to use AI features, you can skip this section. Note that ticket titles will be unavailable.
+If you don't wish to use AI features, you can skip this section.
+
+| Variable      | Required? | Description                    | Default                            |
+| ------------- | --------- | ------------------------------ | ---------------------------------- |
+| `AI_API_KEY`  | Required  | API key for the provider       | _N/A_                              |
+| `AI_BASE_URL` | Optional  | Any OpenAI-compatible base URL | `https://ai.hackclub.com/proxy/v1` |
+
+The old `HACK_CLUB_AI_API_KEY` and `HACK_CLUB_AI_BASE_URL` names are still read as fallbacks.
+
+### AI models
+
+You can configure which models are used for different AI tasks.
 
 <!-- prettier-ignore -->
 | Variable | Required? | Description | Default |
 | -------- | --------- | ----------- | ------- |
-| `HACK_CLUB_AI_API_KEY` | Required | Hack Club AI API key for generating ticket titles | _N/A_ |
-| `HACK_CLUB_AI_BASE_URL` | Optional | Any OpenAI compatible base url | `https://ai.hackclub.com/proxy/v1` |
 | `AI_TITLE_MODEL` | Optional | Model for generating ticket titles | `openai/gpt-oss-120b` |
 | `AI_TAG_MODEL` | Optional | Model for categorising tickets | `google/gemini-3-flash-preview` |
 

@@ -76,7 +76,7 @@ Note: These steps have to be done by a Workspace Admin (otherwise it will be una
 
    ```bash
    # Hack Club AI API key for generating ticket titles (highly recommended)
-   HACK_CLUB_AI_API_KEY="sk-hc-v1-..."
+   AI_API_KEY="sk-hc-v1-..."
    # Set the log level (defaults to "WARNING" in production)
    LOG_LEVEL="INFO"
    # Allow the poster of a question to give feedback after their ticket is resolved
