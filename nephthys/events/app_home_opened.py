@@ -17,6 +17,7 @@ from nephthys.views.home.category_tags import get_category_tags_view
 from nephthys.views.home.dashboard import get_dashboard_view
 from nephthys.views.home.error import get_error_view
 from nephthys.views.home.loading import get_loading_view
+from nephthys.views.home.macros import get_macros_view
 from nephthys.views.home.stats import get_stats_view
 from nephthys.views.home.team_tags import get_team_tags_view
 
@@ -93,6 +94,8 @@ async def open_app_home(
                     view = await get_category_tags_view(user)
                 case AppHomeView.MY_STATS:
                     view = await get_stats_view(user)
+                case AppHomeView.MACROS:
+                    view = await get_macros_view(user)
 
         # Check that the request hasn't been superseded by another request while we were rendering
         user_last_requested_view = last_requested_views.get(user_id)

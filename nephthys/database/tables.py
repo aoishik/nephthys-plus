@@ -178,6 +178,17 @@ class Feedback(Table, tablename="Feedback"):
     created_at = Timestamptz(default=TimestamptzNow(), db_column_name="createdAt")
 
 
+class Macro(Table, tablename="Macro"):
+    id = Serial(primary_key=True, unique=True)
+    name = Text()
+    message = Text()
+    resolve_ticket = Boolean(default=True, db_column_name="resolveTicket")
+    can_run_on_closed = Boolean(default=False, db_column_name="canRunOnClosed")
+    post_as_helper = Boolean(default=False, db_column_name="postAsHelper")
+    program = Text(null=True)
+    created_at = Timestamptz(default=TimestamptzNow(), db_column_name="createdAt")
+
+
 class APIKey(Table, tablename="api_key"):
     id = Serial(primary_key=True, unique=True)
     user = ForeignKey(

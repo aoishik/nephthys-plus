@@ -1,6 +1,6 @@
 # Nephthys API docs
 
-There is no proper API documentation (apart from [the code](https://github.com/hackclub/nephthys/blob/main/nephthys/utils/starlette.py)) yet, but
+There is no proper API documentation (apart from [the code](https://github.com/aoishik/nephthys-plus/blob/main/nephthys/utils/starlette.py)) yet, but
 here's some explanation of the important routes.
 
 All routes respond with JSON.

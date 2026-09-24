@@ -49,6 +49,9 @@ async def reply_to_ticket(
     client: AsyncWebClient,
     text: str,
     blocks: list[MessageBlock] | None = None,
+    username: str | None = None,
+    icon_url: str | None = None,
+    metadata: dict | None = None,
 ) -> None:
     """Sends a user-facing message in the help thread and records it in the database"""
     channel = env.slack_help_channel
@@ -58,6 +61,9 @@ async def reply_to_ticket(
         text=text,
         thread_ts=thread_ts,
         blocks=[block.build() for block in blocks] if blocks else None,
+        username=username,
+        icon_url=icon_url,
+        metadata=metadata,
     )
     msg: dict = response["message"]  # type: ignore (assuming message exists)
     msg_ts = msg.get("ts")

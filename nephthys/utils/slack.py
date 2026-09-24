@@ -19,6 +19,10 @@ from nephthys.actions.create_category_tag import create_category_tag_btn_callbac
 from nephthys.actions.create_category_tag import create_category_tag_view_callback
 from nephthys.actions.create_team_tag import create_team_tag_btn_callback
 from nephthys.actions.create_team_tag import create_team_tag_view_callback
+from nephthys.actions.manage_macros import delete_macro_callback
+from nephthys.actions.manage_macros import macro_form_view_callback
+from nephthys.actions.manage_macros import open_add_macro_modal
+from nephthys.actions.manage_macros import open_edit_macro_modal
 from nephthys.actions.reopen import reopen
 from nephthys.actions.resolve import resolve
 from nephthys.actions.tag_subscribe import tag_subscribe_callback
@@ -32,6 +36,7 @@ from nephthys.events.app_home_opened import on_app_home_opened
 from nephthys.events.app_home_opened import open_app_home
 from nephthys.events.channel_join import channel_join
 from nephthys.events.channel_left import channel_left
+from nephthys.events.message_creation import get_forwarded_ticket_user
 from nephthys.events.message_creation import on_message
 from nephthys.events.message_deletion import on_message_deletion
 from nephthys.options.category_tags import get_category_tags
@@ -51,7 +56,7 @@ async def handle_message(event: Dict[str, Any], client: AsyncWebClient):
         and event["message"].get("subtype") == "tombstone"
     ) or event.get("subtype") == "message_deleted"
 
-    if event["channel"] == env.slack_help_channel:
+    if event["channel"] == env.slack_help_channel or get_forwarded_ticket_user(event):
         async with perf_timer("Processing message event (total time)"):
             if is_message_deletion:
                 await on_message_deletion(event, client)
@@ -300,3 +305,23 @@ async def submit_feedback(ack: AsyncAck, body: Dict[str, Any], client: AsyncWebC
         response_action="update",
         view=success_modal.build(),
     )
+
+
+@app.action("add-macro")
+async def add_macro(ack: AsyncAck, body: Dict[str, Any], client: AsyncWebClient):
+    await open_add_macro_modal(ack, body, client)
+
+
+@app.action("edit-macro")
+async def edit_macro(ack: AsyncAck, body: Dict[str, Any], client: AsyncWebClient):
+    await open_edit_macro_modal(ack, body, client)
+
+
+@app.action("delete-macro")
+async def delete_macro(ack: AsyncAck, body: Dict[str, Any], client: AsyncWebClient):
+    await delete_macro_callback(ack, body, client)
+
+
+@app.view("macro_form")
+async def macro_form(ack: AsyncAck, body: Dict[str, Any], client: AsyncWebClient):
+    await macro_form_view_callback(ack, body, client)

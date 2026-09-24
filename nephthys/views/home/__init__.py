@@ -10,6 +10,7 @@ class AppHomeView(Enum):
     TEAM_TAGS = "team-tags", "Team Tags"
     CATEGORY_TAGS = "category-tags", "Category Tags"
     MY_STATS = "my-stats", "My Stats"
+    MACROS = "macros", "Macros"
 
     def __new__(cls, id: str, label: str):
         member = object.__new__(cls)

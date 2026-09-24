@@ -74,7 +74,7 @@ async def lobby_fallback(req: Request):
 
 
 async def root(req: Request):
-    return RedirectResponse(url="https://github.com/hackclub/nephthys")
+    return RedirectResponse(url="https://github.com/aoishik/nephthys-plus")
 
 
 async def invalid_api_key(req: Request, exc: Exception):
