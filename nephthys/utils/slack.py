@@ -19,6 +19,8 @@ from nephthys.actions.create_category_tag import create_category_tag_btn_callbac
 from nephthys.actions.create_category_tag import create_category_tag_view_callback
 from nephthys.actions.create_team_tag import create_team_tag_btn_callback
 from nephthys.actions.create_team_tag import create_team_tag_view_callback
+from nephthys.actions.edit_category_tag import edit_category_tag_btn_callback
+from nephthys.actions.edit_category_tag import edit_category_tag_view_callback
 from nephthys.actions.manage_macros import delete_macro_callback
 from nephthys.actions.manage_macros import macro_form_view_callback
 from nephthys.actions.manage_macros import open_add_macro_modal
@@ -170,6 +172,20 @@ async def create_category_tag_view(
     ack: AsyncAck, body: Dict[str, Any], client: AsyncWebClient
 ):
     await create_category_tag_view_callback(ack, body, client)
+
+
+@app.action("edit-category-tag")
+async def edit_category_tag(
+    ack: AsyncAck, body: Dict[str, Any], client: AsyncWebClient
+):
+    await edit_category_tag_btn_callback(ack, body, client)
+
+
+@app.view("edit_category_tag")
+async def edit_category_tag_view(
+    ack: AsyncAck, body: Dict[str, Any], client: AsyncWebClient
+):
+    await edit_category_tag_view_callback(ack, body, client)
 
 
 @app.action("tag-subscribe")

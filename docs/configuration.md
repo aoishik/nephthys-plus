@@ -44,6 +44,13 @@ If you don't wish to use AI features, you can skip this section.
 
 The old `HACK_CLUB_AI_API_KEY` and `HACK_CLUB_AI_BASE_URL` names are still read as fallbacks.
 
+> [!NOTE]
+> Nephthys feeds Slack messages to LLMs, so to comply with the [Slack Scraping Policy](https://news.hackclub.com/news/scraping-use-policy/), you must use an API provider that does **not** use your prompts to train models.
+
+### Category tags (Jev)
+
+If you've created category tags, a decision model ([Jev](https://docs.typesafe.ai/)) automatically assigns each new ticket to one, using the tag descriptions. Nephthys calls it at `<AI_BASE_URL>/jev/systemone`, which Hack Club AI provides (Jev access is currently in closed beta on Hack Club AI, so ask for access). Providers without that endpoint will skip categorisation and log an error.
+
 ### AI models
 
 You can configure which models are used for different AI tasks.
@@ -51,8 +58,8 @@ You can configure which models are used for different AI tasks.
 <!-- prettier-ignore -->
 | Variable | Required? | Description | Default |
 | -------- | --------- | ----------- | ------- |
-| `AI_TITLE_MODEL` | Optional | Model for generating ticket titles | `openai/gpt-oss-120b` |
-| `AI_TAG_MODEL` | Optional | Model for categorising tickets | `google/gemini-3-flash-preview` |
+| `AI_TITLE_MODEL` | Optional | Model for generating ticket titles | `deepseek/deepseek-v4.1-flash` |
+| `AI_CATEGORY_MODEL` | Optional | Jev model for categorising tickets | `jev-latest` |
 
 ## Logging
 

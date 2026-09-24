@@ -101,10 +101,10 @@ class Environment:
         self.prometheus_base_url = os.environ.get(
             "PROMETHEUS_BASE_URL", "https://prometheus.hackclub.com"
         ).rstrip("/")
-        self.ai_title_model = os.environ.get("AI_TITLE_MODEL", "openai/gpt-oss-120b")
-        self.ai_tag_model = os.environ.get(
-            "AI_TAG_MODEL", "google/gemini-3-flash-preview"
+        self.ai_title_model = os.environ.get(
+            "AI_TITLE_MODEL", "deepseek/deepseek-v4.1-flash"
         )
+        self.ai_category_model = os.environ.get("AI_CATEGORY_MODEL", "jev-latest")
 
         self.otel_logs_url = os.environ.get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
         self.otel_service_name = os.environ.get("OTEL_SERVICE_NAME", "nephthys")

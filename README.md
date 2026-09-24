@@ -48,10 +48,6 @@ Helpers and admins can add, edit, and delete custom program macros from the **Ma
 - `?max_tokens` - explanation of max_tokens for OpenRouter request limits
 - `?no_money` - inform user that credits are temporarily depleted
 
-### Stale
-
-Tickets that have not had a response for more than 3 days will automatically be closed as stale. The last helper to respond in the thread gets credit for closing them
-
 ### Leaderboard
 
 At midnight UK time each day, you get to see the stats for the day in the team channel, as well as a summary of any old tickets that have been waiting for a helper response for over 5 days.

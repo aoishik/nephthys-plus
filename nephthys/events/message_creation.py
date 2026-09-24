@@ -1,10 +1,11 @@
 import logging
-import string
 from datetime import datetime
 from typing import Any
-from typing import Dict
 
+from httpx import HTTPStatusError
 from openai import OpenAIError
+from openai.types.chat import ChatCompletion
+from prometheus_client import Counter
 from prometheus_client import Histogram
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
@@ -21,6 +22,7 @@ from nephthys.events.message.send_backend_message import send_backend_message
 from nephthys.macros import run_macro
 from nephthys.utils import prometheus
 from nephthys.utils.ai import ai_client
+from nephthys.utils.ai import decisions
 from nephthys.utils.env import env
 from nephthys.utils.logging import send_heartbeat
 from nephthys.utils.performance import perf_timer
@@ -43,7 +45,14 @@ TICKET_CATEGORY_GENERATION_DURATION = Histogram(
 )
 
 
-async def handle_message_sent_to_channel(event: Dict[str, Any], client: AsyncWebClient):
+AI_TOKENS = Counter(
+    "nephthys_ai_tokens_total",
+    "Number of tokens used for AI requests",
+    ["task", "type", "model"],
+)
+
+
+async def handle_message_sent_to_channel(event: dict[str, Any], client: AsyncWebClient):
     """Tell a non-helper off because they sent a thread message with the 'send to channel' box checked."""
     await prometheus.delete_message(
         ts=event["ts"],
@@ -58,7 +67,7 @@ async def handle_message_sent_to_channel(event: Dict[str, Any], client: AsyncWeb
     )
 
 
-async def handle_message_in_thread(event: Dict[str, Any], db_user: User | None):
+async def handle_message_in_thread(event: dict[str, Any], db_user: User | None):
     """Handle a message sent in a help thread.
 
     - If the message starts with "?" (and is from a helper), run the corresponding macro.
@@ -121,7 +130,7 @@ async def handle_message_in_thread(event: Dict[str, Any], db_user: User | None):
 
 
 async def handle_new_question(
-    event: Dict[str, Any], client: AsyncWebClient, db_user: User | None
+    event: dict[str, Any], client: AsyncWebClient, db_user: User | None
 ):
     """Handle a new support question posted in the help channel.
 
@@ -203,14 +212,14 @@ async def handle_new_question(
     async with perf_timer(
         "AI category tag generation", TICKET_CATEGORY_GENERATION_DURATION
     ):
-        category_tag_id = await generate_category_tag(text)
+        category_tag = await generate_category_tag(text)
 
-    if category_tag_id:
+    if category_tag:
         blocks = await backend_message_blocks(
             author_user_id=author_id,
             msg_ts=event["ts"],
             past_tickets=past_tickets,
-            current_category_tag_id=category_tag_id,
+            current_category_tag_id=category_tag.id,
         )
 
         await client.chat_update(
@@ -237,8 +246,8 @@ async def handle_new_question(
             closed_at=None,
             reopened_at=None,
         )
-        if category_tag_id:
-            ticket.category_tag = category_tag_id
+        if category_tag:
+            ticket.category_tag = category_tag
         await ticket.save()
 
         bot_msg = BotMessage(
@@ -247,11 +256,6 @@ async def handle_new_question(
             ticket=ticket.id,
         )
         await bot_msg.save()
-
-        if not category_tag_id:
-            logging.warning(
-                f"Failed to generate category tag for ticket_id={ticket.id}"
-            )
 
     try:
         await client.reactions_add(
@@ -269,7 +273,7 @@ async def handle_new_question(
 
 
 async def send_user_facing_message(
-    event: Dict[str, Any], client: AsyncWebClient, text: str, ticket_url: str
+    event: dict[str, Any], client: AsyncWebClient, text: str, ticket_url: str
 ):
     """Send a user-facing message in the question thread with the provided text
     and a resolve button.
@@ -350,7 +354,7 @@ def get_forwarded_ticket_user(event: dict[str, Any]) -> str | None:
     return source_user_id if isinstance(source_user_id, str) else None
 
 
-async def on_message(event: Dict[str, Any], client: AsyncWebClient):
+async def on_message(event: dict[str, Any], client: AsyncWebClient):
     """
     Handle incoming messages in Slack.
     """
@@ -405,8 +409,9 @@ async def generate_ticket_title(text: str) -> str | None:
 
     model = env.ai_title_model
     try:
-        response = await ai_client.chat.completions.create(
+        response: ChatCompletion = await ai_client.chat.completions.create(
             model=model,
+            reasoning_effort="low",
             messages=[
                 {
                     "role": "system",
@@ -433,60 +438,74 @@ async def generate_ticket_title(text: str) -> str | None:
     if not (len(response.choices) and response.choices[0].message.content):
         await send_heartbeat(f"AI title generation is missing content: {response}")
         return None
+
+    # Track token usage
+    input = response.usage.prompt_tokens if response.usage else None
+    output = response.usage.completion_tokens if response.usage else None
+    if input and output:
+        AI_TOKENS.labels(task="ticket_title", type="input", model=model).inc(input)
+        AI_TOKENS.labels(task="ticket_title", type="output", model=model).inc(output)
+
     title = response.choices[0].message.content.strip()
     # Capitalise first letter
     title = title[0].upper() + title[1:] if len(title) > 1 else title.upper()
     return title
 
 
-async def generate_category_tag(text: str) -> int | None:
+async def generate_category_tag(text: str) -> CategoryTag | None:
     category_tags = await CategoryTag.objects()
-
-    if not category_tags:
+    if not category_tags or not ai_client:
         return None
+    model = env.ai_category_model
 
-    tag_options = ", ".join([tag.name for tag in category_tags])
-    tag_map = {tag.name.lower(): tag for tag in category_tags}
-
-    if not ai_client:
-        return None
-
-    model = env.ai_tag_model
     try:
-        response = await ai_client.chat.completions.create(
+        response = await decisions(
             model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a helpful assistant that categorizes support tickets! "
-                        f"Choose the best tag from this list: [{tag_options}]. "
-                        "Return ONLY the exact tag name. If none fit, return 'None'."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": f"Ticket content: {text}",
-                },
-            ],
+            state={
+                "ticket": {
+                    "message_content": text,
+                }
+            },
+            questions={
+                "category": {
+                    "type": "choice",
+                    "instructions": "Which internal tracking category should this ticket be labeled as?",
+                    "criteria": {tag.name: tag.description for tag in category_tags},
+                }
+            },
         )
-    except OpenAIError as e:
-        await send_heartbeat(f"Failed to get AI response for tag generation: {e}")
+    except HTTPStatusError as e:
+        logging.error(
+            f'Failed to categorise ticket text="{text}" error="{e}" response="{e.response.text}"'
+        )
+        await send_heartbeat(
+            f"Failed to get AI response for tag generation: {e}", [e.response.text]
+        )
+        return None
+    except Exception as e:
+        logging.error(f'Failed to categorise ticket text="{text}" error="{e}"')
+        await send_heartbeat(f"Unexpected error in tag generation: {e}")
         return None
 
-    if not (len(response.choices) and response.choices[0].message.content):
+    category_answer = response["answers"].get("category")
+    if not category_answer or category_answer["type"] != "choice":
+        logging.error(
+            f'AI response is missing category answer for text="{text}" response="{response}"'
+        )
+        return None
+    chosen_category = category_answer["choice"]
+    category_tag = next(
+        (tag for tag in category_tags if tag.name == chosen_category), None
+    )
+    if not category_tag:
+        logging.error(f'AI chose invalid category tag name: "{chosen_category}"')
         return None
 
-    suggested_tag_label = response.choices[0].message.content.strip()
+    tokens = response.get("usage", {}).get("input_tokens")
+    if tokens:
+        AI_TOKENS.labels(task="category_tag", type="input", model=model).inc(tokens)
+    logging.info(
+        f"Successfully generated category tag category={category_tag.slug} confidence={category_answer.get('confidence', '?')} tokens={tokens}"
+    )
 
-    suggested_clean = suggested_tag_label.strip(string.punctuation)
-
-    original_label = tag_map.get(suggested_clean.lower())
-
-    if not original_label:
-        original_label = tag_map.get(suggested_tag_label.lower())
-
-    if original_label:
-        return original_label.id
-
-    return None
+    return category_tag
