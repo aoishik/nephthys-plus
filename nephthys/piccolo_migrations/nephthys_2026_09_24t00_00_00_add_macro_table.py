@@ -11,7 +11,7 @@ async def forwards():
         app_name="nephthys",
         description=DESCRIPTION,
         forwards="""
-CREATE TABLE "Macro" (
+CREATE TABLE IF NOT EXISTS "Macro" (
   "id" SERIAL PRIMARY KEY UNIQUE NOT NULL,
   "name" TEXT NOT NULL,
   "message" TEXT NOT NULL,

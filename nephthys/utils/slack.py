@@ -64,6 +64,23 @@ async def handle_message(event: Dict[str, Any], client: AsyncWebClient):
                 await on_message(event, client)
 
 
+@app.event("message_metadata_posted")
+async def handle_message_metadata_posted(
+    event: Dict[str, Any], client: AsyncWebClient
+):
+    channel = event["channel_id"]
+    ts = event["message_ts"]
+    history = await client.conversations_history(
+        channel=channel, latest=ts, inclusive=True, limit=1
+    )
+    messages = history.get("messages") or []
+    if not messages or messages[0].get("ts") != ts:
+        return
+    forwarded = {**messages[0], "channel": channel, "metadata": event["metadata"]}
+    if channel == env.slack_help_channel and get_forwarded_ticket_user(forwarded):
+        await on_message(forwarded, client)
+
+
 @app.action("mark_resolved")
 async def handle_mark_resolved_button(
     ack: AsyncAck, body: Dict[str, Any], client: AsyncWebClient
