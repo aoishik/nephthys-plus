@@ -9,3 +9,4 @@ class Fraud(ReplyMacro):
 
     name = "fraud"
     message = env.transcript.fraud_macro
+    post_as_helper = True

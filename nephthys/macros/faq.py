@@ -9,3 +9,4 @@ class FAQ(ReplyMacro):
 
     name = "faq"
     message = env.transcript.faq_macro
+    post_as_helper = True

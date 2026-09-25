@@ -10,3 +10,4 @@ class Shipwrights(ReplyMacro):
     name = "shipwrights"
     aliases = ["shipwhrights"]
     message = env.transcript.shipwrights_macro
+    post_as_helper = True

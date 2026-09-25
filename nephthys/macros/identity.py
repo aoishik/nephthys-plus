@@ -9,3 +9,4 @@ class Identity(ReplyMacro):
 
     name = "identity"
     message = env.transcript.identity_macro
+    post_as_helper = True

@@ -8,6 +8,7 @@ from nephthys.utils.ticket_methods import reply_to_ticket
 
 class Hackatime(Macro):
     name = "hackatime"
+    post_as_helper = True
 
     async def run(self, ticket, helper, **kwargs):
         """
@@ -17,10 +18,14 @@ class Hackatime(Macro):
         if not sender:
             return
         user = await get_user_profile(sender.slack_id)
+        username, icon_url = await self.helper_identity(helper)
         await reply_to_ticket(
             text=env.transcript.hackatime_macro.replace("(user)", user.display_name()),
             ticket=ticket,
             client=env.slack_client,
+            username=username,
+            icon_url=icon_url,
+            metadata=self.helper_metadata(helper),
         )
         await resolve(
             ts=ticket.msg_ts,
