@@ -17,19 +17,12 @@ from nephthys.utils.ticket_methods import reply_to_ticket
 
 FORWARD_EVENT_TYPE = "nephthys_plus_forward"
 FORWARD_REPLY_EVENT_TYPE = "nephthys_plus_forward_reply"
-CHANNEL_PATTERN = re.compile(
-    r"^\?forward\s+(?:#([a-z0-9_-]+)|<#([A-Z0-9]+)(?:\|([^>]*))?>)$",
-    re.IGNORECASE,
-)
+CHANNEL_PATTERN = re.compile(r"^\?forward\s+<#([A-Z0-9]+)>$")
 
 
-def parse_forward_target(text: str) -> tuple[str, str | None] | None:
+def parse_forward_target(text: str) -> str | None:
     match = CHANNEL_PATTERN.fullmatch(text.strip())
-    if not match:
-        return None
-    if match.group(2):
-        return match.group(2), match.group(3) or None
-    return match.group(1), None
+    return match.group(1) if match else None
 
 
 def is_current_bot(
@@ -39,25 +32,6 @@ def is_current_bot(
         (bot_user_id and message.get("user") == bot_user_id)
         or (bot_id and message.get("bot_id") == bot_id)
     )
-
-
-async def resolve_channel(client: AsyncWebClient, reference: str) -> dict[str, Any]:
-    if reference.startswith(("C", "G")):
-        response = await client.conversations_info(channel=reference)
-        channel = cast(dict[str, Any], response["channel"])
-        if not channel:
-            raise ValueError(f"Could not find Slack channel {reference}")
-        return channel
-
-    response = await client.conversations_list(
-        exclude_archived=True,
-        types="public_channel,private_channel",
-        limit=1000,
-    )
-    for channel in response.get("channels", []):
-        if channel.get("name", "").casefold() == reference.casefold():
-            return channel
-    raise ValueError(f"Could not find Slack channel #{reference}")
 
 
 async def send_forward_error(ticket: Ticket, helper: User, message: str) -> None:
@@ -123,12 +97,15 @@ class Forward(Macro):
     name = "forward"
 
     async def run(self, ticket: Ticket, helper: User, **kwargs: Any) -> None:
-        target = parse_forward_target(kwargs.get("text", ""))
-        if not target:
-            await send_forward_error(ticket, helper, "Usage: `?forward #channel`")
+        destination_channel = parse_forward_target(kwargs.get("text", ""))
+        if not destination_channel:
+            await send_forward_error(
+                ticket,
+                helper,
+                "Usage: `?forward #channel` (pick the channel from the mention menu)",
+            )
             return
 
-        channel_reference, channel_name = target
         client = env.slack_client
         try:
             bot_info = await client.auth_test()
@@ -147,13 +124,15 @@ class Forward(Macro):
             if not source_message or not source_message.get("text"):
                 raise ValueError("The original ticket message could not be found")
 
-            destination = await resolve_channel(client, channel_reference)
-            destination_channel = destination["id"]
-            destination_name = (
-                destination.get("name") or channel_name or channel_reference
-            )
             source_user_id = ticket.opened_by.slack_id
             source_profile = await get_user_profile(source_user_id)
+            forward_metadata = {
+                "event_type": FORWARD_EVENT_TYPE,
+                "event_payload": {
+                    "source_user_id": source_user_id,
+                    "ticket": True,
+                },
+            }
             destination_message = await client.chat_postMessage(
                 channel=destination_channel,
                 text=source_message["text"],
@@ -161,13 +140,7 @@ class Forward(Macro):
                 attachments=source_message.get("attachments"),
                 username=source_profile.display_name(),
                 icon_url=source_profile.profile_pic_512x(),
-                metadata={
-                    "event_type": FORWARD_EVENT_TYPE,
-                    "event_payload": {
-                        "source_user_id": source_user_id,
-                        "ticket": True,
-                    },
-                },
+                metadata=forward_metadata,
                 unfurl_links=True,
                 unfurl_media=True,
             )
@@ -184,7 +157,7 @@ class Forward(Macro):
                 ticket=ticket,
                 client=client,
                 text=(
-                    f"Forwarded to #{destination_name}, <{destination_link}|message>"
+                    f"Forwarded to <#{destination_channel}>, <{destination_link}|message>"
                 ),
                 username=helper_profile.display_name(),
                 icon_url=helper_profile.profile_pic_512x(),
