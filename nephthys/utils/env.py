@@ -125,6 +125,9 @@ class Environment:
         self.slack_maintainer_id = os.environ.get("SLACK_MAINTAINER_ID", "unset")
         self.program = os.environ.get("PROGRAM", "summer_of_making")
         self.daily_summary = get_environ_bool("DAILY_SUMMARY", default=True)
+        self.daily_summary_max_tickets = int(
+            os.environ.get("DAILY_SUMMARY_MAX_TICKETS", 50)
+        )
         self.enable_feedback = get_environ_bool("ENABLE_FEEDBACK", default=False)
         self.app_title = os.environ.get("APP_TITLE", "helper heidi")
         self.hca = create_hca_config(self.environment)

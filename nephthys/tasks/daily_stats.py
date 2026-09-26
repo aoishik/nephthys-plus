@@ -4,11 +4,11 @@ from datetime import timedelta
 from datetime import timezone
 from zoneinfo import ZoneInfo
 
+from nephthys.database.enums import TicketStatus
 from nephthys.database.tables import TagsOnTickets
 from nephthys.database.tables import Ticket
 from nephthys.utils.env import env
 from nephthys.utils.logging import send_heartbeat
-from nephthys.utils.old_tickets import get_unanswered_tickets
 from nephthys.utils.stats import calculate_daily_stats
 from nephthys.utils.ticket_methods import get_question_message_link
 from nephthys.views.home.components.ticket_status_pie import (
@@ -23,14 +23,14 @@ def slack_timestamp(dt: datetime, format: str = "date_short") -> str:
 
 async def tickets_awaiting_response_message(tickets: list[Ticket]) -> str:
     if not tickets:
-        return ":rac_woah: _btw, i looked for old unanswered tickets, but found none. well done team!_"
+        return ":rac_woah: _btw, every ticket is closed. well done team!_"
 
     count = len(tickets)
-    MAX_TICKETS = 5
+    MAX_TICKETS = env.daily_summary_max_tickets
 
     msg_lines = [
-        ":rac_shy: *tickets you could take a look at*",
-        "i found some older tickets that might be waiting for a response from someone...",
+        ":rac_shy: *tickets that aren't closed yet*",
+        "these tickets are older than 5 days and still open or in progress, stalest first...",
     ]
     for i, ticket in enumerate(tickets[:MAX_TICKETS]):
         label = (
@@ -93,8 +93,13 @@ async def send_daily_stats():
         else:
             daily_leaderboard_str = "\n".join(daily_leaderboard_lines)
 
-        tickets_awaiting_response = await get_unanswered_tickets(
-            since=today_midnight_london - timedelta(days=5)
+        tickets_awaiting_response = (
+            await Ticket.objects()
+            .where(
+                (Ticket.status != TicketStatus.CLOSED)
+                & (Ticket.last_msg_at < today_midnight_london - timedelta(days=5))
+            )
+            .order_by(Ticket.last_msg_at)
         )
 
         pie_chart = await generate_ticket_status_pie_image(

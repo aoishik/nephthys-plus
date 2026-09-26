@@ -123,3 +123,4 @@ You may wish to disable the daily summary for every low-traffic support channels
 | Variable | Description | Default |
 | -------- | ----------- | ------- |
 | `DAILY_SUMMARY` | Set this to false to disable daily summary messages in the BTS channel | `true` |
+| `DAILY_SUMMARY_MAX_TICKETS` | Maximum number of not-yet-closed tickets listed in the daily summary | `50` |
