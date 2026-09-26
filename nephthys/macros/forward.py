@@ -18,7 +18,7 @@ from nephthys.utils.ticket_methods import reply_to_ticket
 FORWARD_EVENT_TYPE = "nephthys_plus_forward"
 FORWARD_REPLY_EVENT_TYPE = "nephthys_plus_forward_reply"
 CHANNEL_PATTERN = re.compile(
-    r"^\?forward\s+(?:#([a-z0-9_-]+)|<#([A-Z0-9]+)\|([^>]+)>)$",
+    r"^\?forward\s+(?:#([a-z0-9_-]+)|<#([A-Z0-9]+)(?:\|([^>]*))?>)$",
     re.IGNORECASE,
 )
 
@@ -28,7 +28,7 @@ def parse_forward_target(text: str) -> tuple[str, str | None] | None:
     if not match:
         return None
     if match.group(2):
-        return match.group(2), match.group(3)
+        return match.group(2), match.group(3) or None
     return match.group(1), None
 
 
