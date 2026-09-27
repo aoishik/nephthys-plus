@@ -321,8 +321,8 @@ async def send_user_facing_message(
             },
         ],
         thread_ts=event.get("ts"),
-        unfurl_links=True,
-        unfurl_media=True,
+        unfurl_links=False,
+        unfurl_media=False,
     )
     msg: dict = response["message"]  # type: ignore (assuming it exists)
     msg_ts = msg.get("ts")
