@@ -35,14 +35,13 @@ class Thread(Macro):
             return
 
         # If the ticket was already closed, now we just need to remove any reactions
-        try:
-            reactions = ["thinking_face", "white_check_mark"]
-            for reaction in reactions:
+        for reaction in ["thinking_face", "white_check_mark"]:
+            try:
                 await env.slack_client.reactions_remove(
                     channel=env.slack_help_channel,
                     timestamp=ticket.msg_ts,
                     name=reaction,
                 )
-        except SlackApiError as e:
-            if e.response["error"] != "no_reaction":
-                raise e
+            except SlackApiError as e:
+                if e.response["error"] != "no_reaction":
+                    raise e
