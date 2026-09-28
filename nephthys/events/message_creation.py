@@ -310,15 +310,6 @@ async def send_user_facing_message(
                     },
                 ],
             },
-            {
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": f"<{ticket_url}|backend> (for support team).",
-                    }
-                ],
-            },
         ],
         thread_ts=event.get("ts"),
         unfurl_links=False,
