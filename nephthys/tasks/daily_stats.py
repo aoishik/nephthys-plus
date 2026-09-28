@@ -15,23 +15,33 @@ from nephthys.views.home.components.ticket_status_pie import (
     generate_ticket_status_pie_image,
 )
 
+BLOCK_TEXT_LIMIT = 2900
 
 def slack_timestamp(dt: datetime, format: str = "date_short") -> str:
     fallback = dt.isoformat().replace("T", " ")
     return f"<!date^{int(dt.timestamp())}^{{{format}}}|{fallback}>"
 
 
-async def tickets_awaiting_response_message(tickets: list[Ticket]) -> str:
-    if not tickets:
-        return ":rac_woah: _btw, every ticket is closed. well done team!_"
+def chunk_message(text: str, limit: int = BLOCK_TEXT_LIMIT) -> list[str]:
+    text = text.strip("\n")
+    chunks = []
+    while text:
+        if len(text) <= limit:
+            chunks.append(text)
+            break
+        split_at = text.rfind("\n", 0, limit)
+        if split_at <= 0:
+            split_at = limit
+        chunks.append(text[:split_at])
+        text = text[split_at:].lstrip("\n")
+    return chunks
 
-    count = len(tickets)
+
+async def ticket_lines(tickets: list[Ticket]) -> list[str]:
     MAX_TICKETS = env.daily_summary_max_tickets
+    count = len(tickets)
 
-    msg_lines = [
-        ":rac_shy: *tickets that aren't closed yet*",
-        "these tickets are older than 5 days and still open or in progress, stalest first...",
-    ]
+    lines = []
     for i, ticket in enumerate(tickets[:MAX_TICKETS]):
         label = (
             ticket.title
@@ -53,13 +63,13 @@ async def tickets_awaiting_response_message(tickets: list[Ticket]) -> str:
             if tag_links
             else ""
         )
-        msg_lines.append(
+        lines.append(
             f"{i + 1}. <{get_question_message_link(ticket)}|{label}>{tags_string} (created {created_date}, last reply *{last_reply}*)"
         )
     if count > MAX_TICKETS:
-        msg_lines.append(f"_(plus {count - MAX_TICKETS} more)_")
+        lines.append(f"_(plus {count - MAX_TICKETS} more)_")
 
-    return "\n".join(msg_lines)
+    return lines
 
 
 async def send_daily_stats():
@@ -116,21 +126,37 @@ you managed to close a whopping *{stats.closed_today}* tickets in the last 24 ho
 
 *:rac_info: today's leaderboard*
 {daily_leaderboard_str}
-
-{await tickets_awaiting_response_message(tickets_awaiting_response)}
 """
+
+        await env.slack_client.chat_postMessage(channel=env.slack_bts_channel, text=msg)
 
         if pie_chart:
             await env.slack_client.files_upload_v2(
                 channel=env.slack_bts_channel,
                 file=pie_chart,
                 title="ticket status",
-                initial_comment=msg,
+            )
+
+        if not tickets_awaiting_response:
+            await env.slack_client.chat_postMessage(
+                channel=env.slack_bts_channel,
+                text=":rac_woah: _btw, every ticket is closed. well done team!_",
             )
         else:
-            await env.slack_client.chat_postMessage(
-                channel=env.slack_bts_channel, text=msg
+            header = await env.slack_client.chat_postMessage(
+                channel=env.slack_bts_channel,
+                text=(
+                    ":rac_shy: *tickets that aren't closed yet*\n"
+                    "these tickets are older than 5 days and still open or in progress, stalest first..."
+                ),
             )
+            lines = await ticket_lines(tickets_awaiting_response)
+            for chunk in chunk_message("\n".join(lines)):
+                await env.slack_client.chat_postMessage(
+                    channel=env.slack_bts_channel,
+                    thread_ts=header["ts"],
+                    text=chunk,
+                )
 
         logging.info("Daily stats message sent successfully.")
 
