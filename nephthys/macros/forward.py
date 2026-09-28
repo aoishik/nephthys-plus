@@ -157,7 +157,7 @@ class Forward(Macro):
                 ticket=ticket,
                 client=client,
                 text=(
-                    f"Forwarded to <#{destination_channel}>, <{destination_link}|message>"
+                    f"We’ve forwarded your question to <#{destination_channel}>, See the thread here: <{destination_link}|message>"
                 ),
                 username=helper_profile.display_name(),
                 icon_url=helper_profile.profile_pic_512x(),
