@@ -12,8 +12,18 @@ class ThreadRip(Macro):
         Like ?thread, but nukes the whole thread: deletes the original ticket
         message and every reply.
         """
+        parts = kwargs["text"].split(maxsplit=1)
+        if len(parts) < 2:
+            await env.slack_client.chat_postEphemeral(
+                channel=env.slack_help_channel,
+                thread_ts=ticket.msg_ts,
+                user=helper.slack_id,
+                text="`?threadrip` needs a reason, e.g. `?threadrip spam`.",
+            )
+            return
+
         await prometheus.delete_thread(
             thread_ts=ticket.msg_ts,
             channel=env.slack_help_channel,
-            reason=f"?threadrip by {helper.slack_id}",
+            reason=f"?threadrip by <@{helper.slack_id}>: {parts[1].strip()}",
         )

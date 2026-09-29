@@ -4,6 +4,7 @@ from nephthys.database.enums import TicketStatus
 from nephthys.database.tables import Macro as MacroTable
 from nephthys.database.tables import Ticket
 from nephthys.database.tables import User
+from nephthys.macros.deleteop import DeleteOP
 from nephthys.macros.faq import FAQ
 from nephthys.macros.forward import Forward
 from nephthys.macros.fraud import Fraud
@@ -34,6 +35,7 @@ macro_list: list[type[Macro]] = [
     Thread,
     Forward,
     ThreadRip,
+    DeleteOP,
     Reopen,
     DailyStats,
     FulfillmentReminder,
