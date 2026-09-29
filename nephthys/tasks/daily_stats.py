@@ -128,13 +128,16 @@ you managed to close a whopping *{stats.closed_today}* tickets in the last 24 ho
 {daily_leaderboard_str}
 """
 
-        await env.slack_client.chat_postMessage(channel=env.slack_bts_channel, text=msg)
-
         if pie_chart:
             await env.slack_client.files_upload_v2(
                 channel=env.slack_bts_channel,
                 file=pie_chart,
                 title="ticket status",
+                initial_comment=msg,
+            )
+        else:
+            await env.slack_client.chat_postMessage(
+                channel=env.slack_bts_channel, text=msg
             )
 
         if not tickets_awaiting_response:
@@ -147,8 +150,10 @@ you managed to close a whopping *{stats.closed_today}* tickets in the last 24 ho
                 channel=env.slack_bts_channel,
                 text=(
                     ":rac_shy: *tickets that aren't closed yet*\n"
-                    "these tickets are older than 5 days and still open or in progress, stalest first..."
+                    "i found some older tickets that might be waiting for a response from someone..."
                 ),
+                unfurl_links=False,
+                unfurl_media=False,
             )
             lines = await ticket_lines(tickets_awaiting_response)
             for chunk in chunk_message("\n".join(lines)):
@@ -156,6 +161,8 @@ you managed to close a whopping *{stats.closed_today}* tickets in the last 24 ho
                     channel=env.slack_bts_channel,
                     thread_ts=header["ts"],
                     text=chunk,
+                    unfurl_links=False,
+                    unfurl_media=False,
                 )
 
         logging.info("Daily stats message sent successfully.")
