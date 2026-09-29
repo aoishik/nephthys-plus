@@ -105,7 +105,7 @@ class Environment:
             "AI_TITLE_MODEL", "deepseek/deepseek-v4.1-flash"
         )
         self.ai_category_model = os.environ.get("AI_CATEGORY_MODEL", "jev-latest")
-
+        self.ai_credit_model = os.environ.get("AI_CREDIT_MODEL", "jev-latest")
         self.otel_logs_url = os.environ.get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT")
         self.otel_service_name = os.environ.get("OTEL_SERVICE_NAME", "nephthys")
         # Allows easily providing HTTP Basic Auth credentials formatted as user:pass

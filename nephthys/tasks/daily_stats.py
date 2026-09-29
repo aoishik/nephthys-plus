@@ -17,6 +17,7 @@ from nephthys.views.home.components.ticket_status_pie import (
 
 BLOCK_TEXT_LIMIT = 2900
 
+
 def slack_timestamp(dt: datetime, format: str = "date_short") -> str:
     fallback = dt.isoformat().replace("T", " ")
     return f"<!date^{int(dt.timestamp())}^{{{format}}}|{fallback}>"

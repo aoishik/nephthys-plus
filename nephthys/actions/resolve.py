@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from datetime import timedelta
 from datetime import UTC
 
 from blockkit import Actions
@@ -12,14 +11,13 @@ from slack_sdk.web.async_client import AsyncWebClient
 from nephthys.database.enums import TicketStatus
 from nephthys.database.tables import Ticket
 from nephthys.database.tables import User
+from nephthys.utils.ai import decisions
 from nephthys.utils.delete_thread import add_thread_to_delete_queue
 from nephthys.utils.env import env
 from nephthys.utils.logging import send_heartbeat
 from nephthys.utils.permissions import can_resolve
 from nephthys.utils.ticket_methods import delete_message
 from nephthys.utils.ticket_methods import reply_to_ticket
-
-THREAD_CREDIT_CUTOFF = timedelta(hours=48)
 
 
 async def resolve(
@@ -52,7 +50,9 @@ async def resolve(
         )
         return
 
-    ticket = await Ticket.objects(Ticket.assigned_to).get((Ticket.msg_ts == ts))
+    ticket = await Ticket.objects(Ticket.assigned_to, Ticket.opened_by).get(
+        (Ticket.msg_ts == ts)
+    )
     if not ticket:
         raise ValueError(f"Failed to find ticket with ts {ts}")
     if ticket.status == TicketStatus.CLOSED:
@@ -65,25 +65,64 @@ async def resolve(
         return
 
     now = datetime.now(UTC)
+    credit_user = None
+    try:
+        replies = await env.slack_client.conversations_replies(
+            channel=env.slack_help_channel,
+            ts=ticket.msg_ts,
+            include_all_metadata=True,
+            limit=500,
+        )
+        thread = []
+        for msg in replies["messages"][1:]:
+            metadata = msg.get("metadata") or {}
+            author = None
+            if metadata.get("event_type") == "nephthys_macro_reply":
+                author = (metadata.get("event_payload") or {}).get("source_user_id")
+            elif not msg.get("bot_id"):
+                author = msg.get("user")
+            if author:
+                thread.append({"author": author, "text": msg.get("text") or ""})
+        participants = {m["author"] for m in thread} | {resolving_user.slack_id}
+        participants.discard(ticket.opened_by.slack_id)
 
-    # If the last message in the thread is recent, credit goes to the last
-    # helper who replied (ticket.assigned_to) rather than whoever clicked
-    # resolve. This prevents rewarding "stealing" active threads, while
-    # still rewarding closing stale, already-answered threads.
-    credit_user = resolving_user
-    if (
-        ticket.assigned_to.id
-        and ticket.last_msg_at is not None
-        and (now - ticket.last_msg_at) <= THREAD_CREDIT_CUTOFF
-    ):
-        credit_user = ticket.assigned_to
-    elif not resolving_user.helper and ticket.assigned_to.id:
-        credit_user = ticket.assigned_to
-
+        candidate = await User.objects().where(
+            User.slack_id.is_in(list(participants)) & User.helper.eq(True)
+        )
+        if len(candidate) == 1:
+            credit_user = candidate[0]
+        elif len(candidate) > 1:
+            response = await decisions(
+                model=env.ai_credit_model,
+                state={
+                    "question": {
+                        "title": ticket.title,
+                        "description": ticket.description,
+                    },
+                    "replies": thread,
+                },
+                questions={
+                    "credit": {
+                        "type": "choice",
+                        "instructions": "Which helper resolved the problem?",
+                        "criteria": {
+                            c.slack_id: (
+                                f"{c.username or c.slack_id}: "
+                                f"{sum(1 for m in thread if m['author'] == c.slack_id)} replies"
+                            )
+                            for c in candidate
+                        },
+                    }
+                },
+            )
+            choice = response["answers"]["credit"]["choice"]
+            credit_user = next((c for c in candidate if c.slack_id == choice), None)
+    except Exception as e:
+        logging.error(f"Failed to pick credit user: {e}", exc_info=True)
     await Ticket.update(
         {
             Ticket.status: TicketStatus.CLOSED,
-            Ticket.closed_by: credit_user.id,
+            Ticket.closed_by: credit_user.id if credit_user else None,
             Ticket.closed_at: now,
         }
     ).where(Ticket.msg_ts == ts)
@@ -126,7 +165,11 @@ async def resolve(
             text=text,
             blocks=[Section(text), actions],
         )
-        if resolving_user.helper and credit_user.slack_id != resolving_user.slack_id:
+        if (
+            credit_user
+            and resolving_user.helper
+            and credit_user.slack_id != resolving_user.slack_id
+        ):
             await client.chat_postEphemeral(
                 channel=env.slack_help_channel,
                 thread_ts=ts,
@@ -161,5 +204,5 @@ async def resolve(
         )
 
     logging.info(
-        f"Resolved ticket ts={ts} by slack_id={resolving_user.slack_id} credit_to={credit_user.slack_id}"
+        f"Resolved ticket ts={ts} by slack_id={resolving_user.slack_id} credit_to={credit_user.slack_id if credit_user else None}"
     )
