@@ -6,7 +6,7 @@ You can also follow it to deploy Nephthys elsewhere, but you'll have to replace 
 
 ## Deploying the database to Coolify
 
-1. Navigate to the **amber/nephthys** project on the Hack Club HQ Coolify
+1. Navigate to the Nephthys project on the Hack Club HQ Coolify
 2. Navigate to the Production environment and add a new resource
 3. To add the database, select **PostgreSQL**
 4. Select the **coolify-app-server-b** server (as it's currently recommended)
@@ -65,7 +65,7 @@ Note: These steps have to be done by a Workspace Admin (otherwise it will be una
    # Copy this from the PostgreSQL resource you created earlier
    DATABASE_URL="postgres://postgres:blahblah@somewhere:5432/postgres"
    # Pick a transcript from the transcripts/ folder (your event will probably have its own)
-   PROGRAM="flavortown"
+   PROGRAM="help"
    # Choose a title to be shown to helpers at the top of the App Home
    APP_TITLE="Heidi the Assistant"
    # Set this to the URL where the bot will be hosted
@@ -75,8 +75,14 @@ Note: These steps have to be done by a Workspace Admin (otherwise it will be una
 3. There's some optional environment variables that are recommended to set:
 
    ```bash
-   # Hack Club AI API key for generating ticket titles (highly recommended)
+   # Hack Club AI API key for ticket titles, category tags and credit decisions (highly recommended)
    AI_API_KEY="sk-hc-v1-..."
+   # Socket Mode: no public request URL needed (create an app-level token with connections:write)
+   SLACK_APP_TOKEN="xapp-..."
+   # Audited message/thread deletion for ?threadrip and ?deleteop (falls back to SLACK_USER_TOKEN admin)
+   PROMETHEUS_API_KEY="..."
+   # Max tickets listed in the daily summary (default 50)
+   DAILY_SUMMARY_MAX_TICKETS=12
    # Set the log level (defaults to "WARNING" in production)
    LOG_LEVEL="INFO"
    # Allow the poster of a question to give feedback after their ticket is resolved

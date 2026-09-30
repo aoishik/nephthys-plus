@@ -110,8 +110,6 @@ The `SESSION_SECRET` is a secret key used to sign session cookies. If someone ga
 
 For observability nerds, logs can be optionally sent to an OpenTelemetry-compatible endpoint.
 
-Mish likes to use this because he doesn't trust Coolify's log output to work 100% of the time.
-
 If you don't want to configure this, or don't know what OpenTelemetry is, skip this section.
 
 <!-- prettier-ignore -->

@@ -45,10 +45,6 @@ class Transcript(BaseModel):
         description="FAQ link URL",
     )
 
-    summer_help_channel: str = Field(
-        default="C091D312J85", description="Summer help channel ID"
-    )
-
     identity_help_channel: str = Field(
         default="C092833JXKK", description="Identity help channel ID"
     )
@@ -99,44 +95,14 @@ class Transcript(BaseModel):
         default="", description="Message to be sent when the identity macro is used"
     )
 
-    ship_cert_queue_macro: str | None = Field(
-        default=None,
-        description="Message to be sent when the ship cert queue macro is used (only applies to Flavortown and SoM)",
-    )
-
     hackatime_macro: str = Field(
         default="Hi (user), could you send that question to the Hackatime team at https://letterbird.co/hackatime? :rac_cute:\n\nThey'll be able to provide better help for Hackatime-specific issues!\n\n_I've marked this thread as resolved_",
         description="Message to be sent when the Hackatime macro is used",
     )
 
-    vote_queue_macro: str | None = Field(
-        default=None,
-        description="Message to inform users that there's a large voting backlog",
-    )
-
-    vote_quality_macro: str | None = Field(
-        default=None,
-        description="Message to inform users that low-quality votes will get rejected",
-    )
-
-    max_tokens_macro: str | None = Field(
-        default=None,
-        description="Message explaining max_tokens for OpenRouter",
-    )
-
-    no_money_macro: str | None = Field(
-        default=None,
-        description="Message for credits ran out",
-    )
-
     stale_tickets_macro: str = Field(
         default="Hey, (user)! It seems like this ticket has been inactive for some days so I'll be closing it.\nIf your question wasn't answered, please feel free to make a new one. Thanks!",
         description="Message for closing stale tickets",
-    )
-
-    search_macro: str | None = Field(
-        default=None,
-        description="Message explaining web search and Exa API recommendation for Hack Club AI",
     )
 
     not_allowed_channel: str = Field(

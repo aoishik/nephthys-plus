@@ -5,7 +5,7 @@ class Stardance(Transcript):
     """Transcript for Stardance Challenge"""
 
     program_name: str = "Stardance"
-    program_owner: str = "U073M5L9U13"  # @Mish
+    program_owner: str = "U073M5L9U13"
 
     help_channel: str = "C0AP0NMSP3P"  # #stardance-help
     ticket_channel: str = "C0B2KKWCMRN"  # #stardance-tickets
@@ -56,12 +56,3 @@ _I've marked this thread as resolved_
 """
 
     not_allowed_channel: str = f"hey, it looks like you're not supposed to be in that channel, pls talk to <@{program_owner}> if that's wrong"
-
-    vote_quality_macro: str | None = """
-Hi! Poor-quality votes are likely to get rejected by the platform, which means they won't count towards your vote balance. Good voters do the following:
-
-• Look at the demo and repository links
-• Look through the devlogs
-• Give accurate, thoughtful scores
-• Write genuine and personal feedback
-"""

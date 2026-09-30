@@ -1,6 +1,6 @@
 # Nephthys Plus
 
-Nephthys Plus is the bot powering many support channels in the Hack Club Slack such as #flavortown-help and #identity-help! Below is a guide to set her up for developing and here's a list of some of her features :)
+Nephthys Plus is the bot powering many support channels in the Hack Club Slack such as #help and #hackclub-ai-help! Below is a guide to set her up for developing and here's a list of some of her features :)
 
 ## Features
 
@@ -27,26 +27,21 @@ Sometimes it’s nice to be able to do things quickly... Here’s where macros c
 - `?faq` - redirect to the FAQ
 - `?hii` - silly message :3
 - `?fraud` - redirect to Fraud Squad
+- `?forward` - forward the thread to another channel
+- `?threadrip <reason>` - delete the whole thread (original post and every reply)
+- `?deleteop` - delete only the original post
+- `?stale` - close a stale ticket with a polite message
+- `?tag <tag_name>` - add a team tag to the ticket
 - `?thread` - remove the reaction and all Nephthys+ replies to unclutter duplicates
 - `?shipwrights` - redirect to #ask-the-shipwrights
 - `?hackatime` - redirect to #hackatime-help
 - more to come?? feel free to PR your own into aoishik/nephthys-plus or tell me what you want
 
-#### Flavortown-specific macros
-
-- `?shipcertqueue` - tell them to wait and vote because there's a backlog of ships
-- `?votequeue` - there's a large voting backlog, please be patient
-- `?votequality` - low-quality votes get discarded by the platform; please vote well!
+Program-specific macros can be added from the App Home (see below) without touching code.
 
 #### Custom Program Macros
 
 Helpers and admins can add, edit, and delete custom program macros from the **Macros** tab on the bot's App Home. Each macro can optionally be set to keep the ticket open (instead of resolving it) or to run on closed tickets.
-
-#### HCAI-specific macros
-
-- `?search` - web search / Exa API deprecation notice and link
-- `?max_tokens` - explanation of max_tokens for OpenRouter request limits
-- `?no_money` - inform user that credits are temporarily depleted
 
 ### Leaderboard
 
@@ -69,6 +64,8 @@ When you send a message in a help thread, that thread is assigned to you and it 
 ```bash
 docker run --name hh-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
 ```
+
+For production, see [docs/deployment.md](docs/deployment.md) (Orchard).
 
 ## Setting up the Slack App
 

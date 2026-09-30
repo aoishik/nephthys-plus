@@ -5,7 +5,7 @@ class Flavortown(Transcript):
     """Transcript for Hack Club Flavortown."""
 
     program_name: str = "Flavortown"
-    program_owner: str = "U073M5L9U13"  # @Mish
+    program_owner: str = "U073M5L9U13"
 
     help_channel: str = "C09MATKQM8C"  # #flavortown-help
     ticket_channel: str = "C09LS4SAWNB"  # #flavortown-tickets
@@ -50,20 +50,3 @@ _I've marked this thread as resolved_
 """
 
     not_allowed_channel: str = f"hey, it looks like you're not supposed to be in that channel, pls talk to <@{program_owner}> if that's wrong"
-
-    ship_cert_queue_macro: str | None = (
-        "Hey (user), we currently have a backlog of projects waiting to be certified. Please be patient.\n\n*You can keep track of the queue <https://us.review.hackclub.com/queue | here>!*"
-    )
-    vote_queue_macro: str | None = """
-With the end of Flavortown near, there's currently a lot of projects in the queue to be voted on, so don't worry if your project is taking longer than usual.
-
-We're working on reducing the backlog, but for now, please be patient while waiting for your project to receive votes!
-"""
-    vote_quality_macro: str | None = """
-Hi! Poor-quality votes are likely to get rejected by the platform, which means they won't count towards your vote balance. Good voters do the following:
-
-• Look at the demo and repository links
-• Look through the devlogs
-• Give accurate, thoughtful scores
-• Write genuine and personal feedback
-"""

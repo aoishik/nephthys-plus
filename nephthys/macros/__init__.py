@@ -19,7 +19,6 @@ from nephthys.macros.team_tag import TeamTag
 from nephthys.macros.thread import Thread
 from nephthys.macros.threadrip import ThreadRip
 from nephthys.macros.trigger_daily_stats import DailyStats
-from nephthys.macros.trigger_fulfillment_reminder import FulfillmentReminder
 from nephthys.macros.types import Macro
 from nephthys.macros.types import ReplyMacro
 from nephthys.utils import prometheus
@@ -38,7 +37,6 @@ macro_list: list[type[Macro]] = [
     DeleteOP,
     Reopen,
     DailyStats,
-    FulfillmentReminder,
     Shipwrights,
     TeamTag,
     Hackatime,
