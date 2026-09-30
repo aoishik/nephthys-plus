@@ -20,6 +20,9 @@ from nephthys.utils.ticket_methods import delete_message
 from nephthys.utils.ticket_methods import reply_to_ticket
 
 
+NO_CREDIT = "none"
+
+
 async def resolve(
     ts: str,
     resolver: str,
@@ -66,6 +69,7 @@ async def resolve(
 
     now = datetime.now(UTC)
     credit_user = None
+    jev_decided = False
     try:
         replies = await env.slack_client.conversations_replies(
             channel=env.slack_help_channel,
@@ -86,8 +90,13 @@ async def resolve(
         participants = {m["author"] for m in thread} | {resolving_user.slack_id}
         participants.discard(ticket.opened_by.slack_id)
 
-        candidate = await User.objects().where(
-            User.slack_id.is_in(list(participants)) & User.helper.eq(True)
+        # is_in([]) raises, e.g. when the author resolves their own ticket
+        candidate = (
+            await User.objects().where(
+                User.slack_id.is_in(list(participants)) & User.helper.eq(True)
+            )
+            if participants
+            else []
         )
         if len(candidate) == 1:
             credit_user = candidate[0]
@@ -104,19 +113,23 @@ async def resolve(
                 questions={
                     "credit": {
                         "type": "choice",
-                        "instructions": "Which helper resolved the problem?",
+                        "instructions": "Which helper resolved the problem? Pick 'none' if nobody genuinely helped.",
                         "criteria": {
-                            c.slack_id: (
-                                f"{c.username or c.slack_id}: "
-                                f"{sum(1 for m in thread if m['author'] == c.slack_id)} replies"
-                            )
-                            for c in candidate
+                            **{
+                                c.slack_id: (
+                                    f"{c.username or c.slack_id}: "
+                                    f"{sum(1 for m in thread if m['author'] == c.slack_id)} replies"
+                                )
+                                for c in candidate
+                            },
+                            NO_CREDIT: "No one: a test ticket, spam, or nobody actually helped",
                         },
                     }
                 },
             )
             choice = response["answers"]["credit"]["choice"]
             credit_user = next((c for c in candidate if c.slack_id == choice), None)
+            jev_decided = True
     except Exception as e:
         logging.error(f"Failed to pick credit user: {e}", exc_info=True)
     await Ticket.update(
@@ -165,16 +178,19 @@ async def resolve(
             text=text,
             blocks=[Section(text), actions],
         )
-        if (
-            credit_user
-            and resolving_user.helper
-            and credit_user.slack_id != resolving_user.slack_id
-        ):
+    if jev_decided and resolving_user.helper:
+        if credit_user is None:
+            note = "Jev :tm: decided that no one gets credit for this one."
+        elif credit_user.slack_id != resolving_user.slack_id:
+            note = f"nice try stealing that ticket, but Jev :tm: decided that <@{credit_user.slack_id}> will get the credit."
+        else:
+            note = None
+        if note:
             await client.chat_postEphemeral(
                 channel=env.slack_help_channel,
                 thread_ts=ts,
                 user=resolving_user.slack_id,
-                text=f"by the way! since this is still an active ticket, i've credited this resolve to <@{credit_user.slack_id}>",
+                text=note,
             )
     if add_reaction:
         await client.reactions_add(
