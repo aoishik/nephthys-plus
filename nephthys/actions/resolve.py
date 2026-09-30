@@ -113,7 +113,15 @@ async def resolve(
                 questions={
                     "credit": {
                         "type": "choice",
-                        "instructions": "Which helper resolved the problem? Pick 'none' if nobody genuinely helped.",
+                        "instructions": (
+                            "Credit the helper whose reply actually answered or solved the "
+                            "poster's question. An answer counts even if the poster never "
+                            "replied, thanked anyone, or left the channel: silence is not "
+                            "failure. A helper with 0 replies only closed the thread and "
+                            "gets credit only if no one else helped. Choose 'none' only if "
+                            "the ticket is a test, spam or nonsense, or no helper gave a "
+                            "substantive answer."
+                        ),
                         "criteria": {
                             **{
                                 c.slack_id: (
@@ -122,7 +130,7 @@ async def resolve(
                                 )
                                 for c in candidate
                             },
-                            NO_CREDIT: "No one: a test ticket, spam, or nobody actually helped",
+                            NO_CREDIT: "No one: test/spam/nonsense ticket, or no helper gave a real answer (NOT for answered questions the poster just never followed up on)",
                         },
                     }
                 },
