@@ -1,3 +1,4 @@
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from statistics import fmean
@@ -13,6 +14,22 @@ from nephthys.utils.ticket_methods import get_question_message_link
 class LeaderboardEntry(TypedDict):
     user: User
     count: int
+
+
+def leaderboard_name(entry: LeaderboardEntry) -> str:
+    user = entry["user"]
+    return f"<@{user.slack_id}>" + ("" if user.helper else " (not helper)")
+
+
+async def build_leaderboard(tickets: list[Ticket]) -> list[LeaderboardEntry]:
+    counts = Counter(
+        t.closed_by for t in tickets if t.closed_by and t.closed_by != t.opened_by
+    )
+    if not counts:
+        return []
+    users = await User.objects().where(User.id.is_in(list(counts)))
+    board: list[LeaderboardEntry] = [{"user": u, "count": counts[u.id]} for u in users]
+    return sorted(board, key=lambda entry: entry["count"], reverse=True)
 
 
 class OldestUnansweredTicket(TypedDict):
@@ -82,14 +99,7 @@ def calculate_resolution_times(tickets: list[Ticket]) -> list[float]:
 async def calculate_overall_stats() -> OverallStatsResult:
     tickets = await Ticket.objects() or []
 
-    helpers = await User.objects().where(User.helper.eq(True))
-    helpers_leaderboard: list[LeaderboardEntry] = []
-    for user in helpers:
-        # FIXME: This is an n+1 query that we should get rid of at some point
-        closed_count = await Ticket.count().where(Ticket.closed_by == user.id)
-        if closed_count > 0:
-            helpers_leaderboard.append({"user": user, "count": closed_count})
-    helpers_leaderboard.sort(key=lambda entry: entry["count"], reverse=True)
+    helpers_leaderboard = await build_leaderboard(tickets)
 
     total_open = len([t for t in tickets if t.status == TicketStatus.OPEN])
     total_in_progress = len(
@@ -189,22 +199,8 @@ async def calculate_daily_stats(
         t for t in tickets if start_time <= t.created_at < end_time
     ]
 
-    helpers = await User.objects().where(User.helper.eq(True))
-    leaderboard_data = []
-    for user in helpers:
-        # FIXME: We should move this query outside of the loop for performance!
-        closed_tickets = await Ticket.objects().where(
-            (Ticket.closed_by == user.id)
-            & (Ticket.closed_at >= start_time)
-            & (Ticket.closed_at < end_time)
-        )
-        daily_closed_count = len(closed_tickets)
-        if daily_closed_count > 0:
-            leaderboard_data.append({"user": user, "count": daily_closed_count})
-    helpers_leaderboard = sorted(
-        leaderboard_data,
-        key=lambda data: data["count"],
-        reverse=True,
+    helpers_leaderboard = await build_leaderboard(
+        [t for t in tickets if t.closed_at and start_time <= t.closed_at < end_time]
     )
 
     new_tickets_total = len(tickets_created_today)

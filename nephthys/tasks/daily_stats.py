@@ -10,12 +10,16 @@ from nephthys.database.tables import Ticket
 from nephthys.utils.env import env
 from nephthys.utils.logging import send_heartbeat
 from nephthys.utils.stats import calculate_daily_stats
+from nephthys.utils.stats import calculate_overall_stats
+from nephthys.utils.stats import leaderboard_name
 from nephthys.utils.ticket_methods import get_question_message_link
 from nephthys.views.home.components.ticket_status_pie import (
     generate_ticket_status_pie_image,
 )
 
 BLOCK_TEXT_LIMIT = 2900
+HIRE_MIN_CLOSED = 50
+HIRE_MAX_SHOWN = 3
 
 
 def slack_timestamp(dt: datetime, format: str = "date_short") -> str:
@@ -96,13 +100,30 @@ async def send_daily_stats():
         stats = await calculate_daily_stats(start_of_yesterday, end_of_yesterday)
 
         daily_leaderboard_lines = [
-            f"{i + 1}. <@{entry['user'].slack_id}> - {entry['count']} closed tickets"
+            f"{i + 1}. {leaderboard_name(entry)} - {entry['count']} closed tickets"
             for i, entry in enumerate(stats.helpers_leaderboard[:3])
         ]
         if not daily_leaderboard_lines:
             daily_leaderboard_str = "_No tickets were closed yesterday!_"
         else:
             daily_leaderboard_str = "\n".join(daily_leaderboard_lines)
+
+        overall = await calculate_overall_stats()
+        hire_candidates = [
+            e
+            for e in overall.helpers_leaderboard
+            if not e["user"].helper and e["count"] > HIRE_MIN_CLOSED
+        ][:HIRE_MAX_SHOWN]
+        hire_str = (
+            "\n:rac_info: *a few helpers you may want to kidnap:*\n"
+            + "\n".join(
+                f"• <@{e['user'].slack_id}> - {e['count']} closed tickets"
+                for e in hire_candidates
+            )
+            + "\n"
+            if hire_candidates
+            else ""
+        )
 
         tickets_awaiting_response = (
             await Ticket.objects()
@@ -127,7 +148,7 @@ you managed to close a whopping *{stats.closed_today}* tickets in the last 24 ho
 
 *:rac_info: today's leaderboard*
 {daily_leaderboard_str}
-"""
+{hire_str}"""
 
         if pie_chart:
             await env.slack_client.files_upload_v2(

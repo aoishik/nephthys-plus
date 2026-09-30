@@ -16,11 +16,36 @@ from nephthys.utils.delete_thread import add_thread_to_delete_queue
 from nephthys.utils.env import env
 from nephthys.utils.logging import send_heartbeat
 from nephthys.utils.permissions import can_resolve
+from nephthys.utils.slack_user import get_user_profile
 from nephthys.utils.ticket_methods import delete_message
 from nephthys.utils.ticket_methods import reply_to_ticket
 
 
 NO_CREDIT = "none"
+CREDIT_INSTRUCTIONS = (
+    "Pick who gets credit for helping with this ticket. Choose the person who did the "
+    "most to answer or solve the poster's question, judged by the substance of their "
+    "replies, not just how many. Each reply has a 'role': 'poster' is the person who "
+    "asked; everyone else is a helper or a community member, and community members "
+    "are just as eligible as helpers. The poster staying silent, not thanking anyone, "
+    "or leaving the channel does NOT mean nobody helped. Ignore replies that add "
+    "nothing (thanks, +1, chatter). Choose 'none' ONLY when the ticket is clearly a "
+    "test, spam or nonsense post, never because an answer was short, partial or "
+    "unconfirmed."
+)
+
+
+async def get_or_create_users(slack_ids: set[str]) -> list[User]:
+    users = []
+    for slack_id in slack_ids:
+        user = await User.objects().where(User.slack_id == slack_id).first()
+        if not user:
+            profile = await get_user_profile(slack_id)
+            user = await User.objects().get_or_create(
+                User.slack_id == slack_id, defaults={User.username: profile.username()}
+            )
+        users.append(user)
+    return users
 
 
 async def resolve(
@@ -78,7 +103,7 @@ async def resolve(
             limit=500,
         )
         thread = []
-        for msg in replies["messages"][1:]:
+        for msg in (replies["messages"] or [])[1:]:
             metadata = msg.get("metadata") or {}
             author = None
             if metadata.get("event_type") == "nephthys_macro_reply":
@@ -87,20 +112,22 @@ async def resolve(
                 author = msg.get("user")
             if author:
                 thread.append({"author": author, "text": msg.get("text") or ""})
-        participants = {m["author"] for m in thread} | {resolving_user.slack_id}
-        participants.discard(ticket.opened_by.slack_id)
-
-        # is_in([]) raises, e.g. when the author resolves their own ticket
-        candidate = (
-            await User.objects().where(
-                User.slack_id.is_in(list(participants)) & User.helper.eq(True)
-            )
-            if participants
-            else []
-        )
-        if len(candidate) == 1:
-            credit_user = candidate[0]
-        elif len(candidate) > 1:
+        opener = ticket.opened_by
+        authors = {m["author"] for m in thread} - {opener.slack_id}
+        candidate = await get_or_create_users(authors)
+        if candidate:
+            names = {
+                c.slack_id: f"{c.username or c.slack_id} "
+                f"({'helper' if c.helper else 'community member'})"
+                for c in candidate
+            }
+            for m in thread:
+                m["role"] = (
+                    "poster"
+                    if m["author"] == opener.slack_id
+                    else names.get(m["author"], "non-human")
+                )
+            credit_user = candidate[0] if len(candidate) == 1 else None
             response = await decisions(
                 model=env.ai_credit_model,
                 state={
@@ -113,24 +140,16 @@ async def resolve(
                 questions={
                     "credit": {
                         "type": "choice",
-                        "instructions": (
-                            "Credit the helper whose reply actually answered or solved the "
-                            "poster's question. An answer counts even if the poster never "
-                            "replied, thanked anyone, or left the channel: silence is not "
-                            "failure. A helper with 0 replies only closed the thread and "
-                            "gets credit only if no one else helped. Choose 'none' only if "
-                            "the ticket is a test, spam or nonsense, or no helper gave a "
-                            "substantive answer."
-                        ),
+                        "instructions": CREDIT_INSTRUCTIONS,
                         "criteria": {
                             **{
                                 c.slack_id: (
-                                    f"{c.username or c.slack_id}: "
+                                    f"{names[c.slack_id]}: "
                                     f"{sum(1 for m in thread if m['author'] == c.slack_id)} replies"
                                 )
                                 for c in candidate
                             },
-                            NO_CREDIT: "No one: test/spam/nonsense ticket, or no helper gave a real answer (NOT for answered questions the poster just never followed up on)",
+                            NO_CREDIT: "No one: only for clearly test, spam or nonsense tickets. Never for a real question.",
                         },
                     }
                 },
