@@ -10,6 +10,8 @@ from nephthys.actions.resolve import resolve
 from nephthys.database.enums import TicketStatus
 from nephthys.database.tables import Ticket
 from nephthys.database.tables import User
+from nephthys.utils.ai import ai_client
+from nephthys.utils.ai import decisions
 from nephthys.utils.env import env
 from nephthys.utils.logging import send_heartbeat
 
@@ -82,6 +84,63 @@ async def get_is_stale(ts: str, stale_ticket_days: int, max_retries: int = 3) ->
     return False
 
 
+STALE_INSTRUCTIONS = (
+    "This support ticket has had no activity for a while. Should it be closed? "
+    "Close it if the question was answered, the poster was redirected to another channel "
+    "or resource (that counts as solved), a helper asked a follow-up and the poster never "
+    "replied, the poster stopped replying or said thanks, or it is spam/test/nonsense/greeting. "
+    "Keep it open ONLY if (a) nobody has replied to a real question yet, or (b) the poster's "
+    "last message is a real question or complaint that no one answered or acted on."
+)
+
+
+async def jev_should_close(ticket: Ticket) -> bool:
+    """Asks Jev whether a stale ticket should be closed. Without AI configured, every
+    stale ticket closes (the old behaviour); on error, it stays open until the next run."""
+    if not ai_client:
+        return True
+    try:
+        replies = await env.slack_client.conversations_replies(
+            channel=env.slack_help_channel, ts=ticket.msg_ts, limit=200
+        )
+        thread = [
+            {
+                "role": "poster"
+                if m.get("user") == ticket.opened_by.slack_id
+                else "bot"
+                if m.get("bot_id")
+                else "other",
+                "text": m.get("text") or "",
+            }
+            for m in (replies["messages"] or [])[1:]
+        ]
+        if not any(m["role"] != "bot" for m in thread):
+            return False  # nobody has replied yet, so it isn't solved
+        response = await decisions(
+            model=env.ai_stale_model,
+            state={
+                "question": {"title": ticket.title, "description": ticket.description},
+                "replies": thread,
+            },
+            questions={
+                "close": {
+                    "type": "choice",
+                    "instructions": STALE_INSTRUCTIONS,
+                    "criteria": {
+                        "close": "Close the ticket.",
+                        "keep_open": "Leave it open, the poster still needs help.",
+                    },
+                }
+            },
+        )
+        choice = response["answers"]["close"]["choice"]
+        logging.info(f"Jev stale decision ticket={ticket.msg_ts} choice={choice}")
+        return choice == "close"
+    except Exception as e:
+        logging.error(f"Jev stale decision failed ticket={ticket.msg_ts}: {e}")
+        return False
+
+
 async def close_stale_tickets():
     """
     Closes tickets that have been inactive for more than the configured number of days,
@@ -119,7 +178,6 @@ async def close_stale_tickets():
                 await asyncio.sleep(1.2)  # Rate limiting delay
 
                 if await get_is_stale(ticket.msg_ts, stale_ticket_days):
-                    stale += 1
                     resolver_user = (
                         ticket.assigned_to if ticket.assigned_to else ticket.opened_by
                     )
@@ -128,6 +186,17 @@ async def close_stale_tickets():
                             f"Skipping stale ticket {ticket.msg_ts}: no assigned or opened user"
                         )
                         continue
+                    if not await jev_should_close(ticket):
+                        if ticket.assigned_to:
+                            # The nudge is a new reply, so the ticket isn't stale again
+                            # for another stale_ticket_days.
+                            await env.slack_client.chat_postMessage(
+                                channel=env.slack_help_channel,
+                                thread_ts=ticket.msg_ts,
+                                text=f":rac_nooo: <@{ticket.assigned_to.slack_id}> this ticket is still open and the poster looks like they still need help, please help out!",
+                            )
+                        continue
+                    stale += 1
                     await resolve(
                         ticket.msg_ts,
                         resolver_user.slack_id,

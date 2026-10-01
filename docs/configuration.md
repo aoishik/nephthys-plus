@@ -127,7 +127,7 @@ Using this feature is **not recommended** for most help channels, as tickets bei
 <!-- prettier-ignore -->
 | Variable | Required? | Description | Default |
 | -------- | --------- | ----------- | ------- |
-| `STALE_TICKET_DAYS` | Required | Enable stale ticket auto-close; tickets inactive for this many days will be automatically closed; leave unset to disable | _Unset_ (disabled) |
+| `STALE_TICKET_DAYS` | Required | Enable stale ticket auto-close; tickets inactive for this many days will be automatically closed, but only if Jev (when AI is configured) agrees; leave unset to disable | _Unset_ (disabled) |
 
 ## Other feature flags
 
