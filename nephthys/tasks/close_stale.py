@@ -178,22 +178,26 @@ async def close_stale_tickets():
                 await asyncio.sleep(1.2)  # Rate limiting delay
 
                 if await get_is_stale(ticket.msg_ts, stale_ticket_days):
-                    resolver_user = (
-                        ticket.assigned_to if ticket.assigned_to else ticket.opened_by
+                    # Piccolo returns an empty `User` (slack_id=None) for unassigned tickets
+                    assignee = (
+                        ticket.assigned_to
+                        if getattr(ticket.assigned_to, "slack_id", None)
+                        else None
                     )
+                    resolver_user = assignee or ticket.opened_by
                     if not resolver_user:
                         logging.warning(
                             f"Skipping stale ticket {ticket.msg_ts}: no assigned or opened user"
                         )
                         continue
                     if not await jev_should_close(ticket):
-                        if ticket.assigned_to:
+                        if assignee:
                             # The nudge is a new reply, so the ticket isn't stale again
                             # for another stale_ticket_days.
                             await env.slack_client.chat_postMessage(
                                 channel=env.slack_help_channel,
                                 thread_ts=ticket.msg_ts,
-                                text=f":rac_nooo: <@{ticket.assigned_to.slack_id}> this ticket is still open and the poster looks like they still need help, please help out!",
+                                text=f":rac_nooo: <@{assignee.slack_id}> this ticket is still open and the poster looks like they still need help, please help out!",
                             )
                         continue
                     try:
