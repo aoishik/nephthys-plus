@@ -81,7 +81,6 @@ async def copy_forwarded_replies(
             thread_ts=destination_ts,
             text=message.get("text") or " ",
             blocks=message.get("blocks"),
-            attachments=message.get("attachments"),
             username=username,
             icon_url=icon_url,
             metadata={
@@ -137,7 +136,6 @@ class Forward(Macro):
                 channel=destination_channel,
                 text=source_message["text"],
                 blocks=source_message.get("blocks"),
-                attachments=source_message.get("attachments"),
                 username=source_profile.display_name(),
                 icon_url=source_profile.profile_pic_512x(),
                 metadata=forward_metadata,

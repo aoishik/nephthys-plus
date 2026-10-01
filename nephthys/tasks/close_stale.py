@@ -196,13 +196,18 @@ async def close_stale_tickets():
                                 text=f":rac_nooo: <@{ticket.assigned_to.slack_id}> this ticket is still open and the poster looks like they still need help, please help out!",
                             )
                         continue
+                    try:
+                        await resolve(
+                            ticket.msg_ts,
+                            resolver_user.slack_id,
+                            env.slack_client,
+                            stale=True,
+                        )
+                    except Exception as e:
+                        # One bad ticket (e.g. cant_delete_message) must not abort the run
+                        logging.error(f"Failed to close stale ticket {ticket.msg_ts}: {e}")
+                        continue
                     stale += 1
-                    await resolve(
-                        ticket.msg_ts,
-                        resolver_user.slack_id,
-                        env.slack_client,
-                        stale=True,
-                    )
 
             # Longer delay between batches
             if i + batch_size < len(tickets):
