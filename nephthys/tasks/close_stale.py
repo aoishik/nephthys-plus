@@ -101,12 +101,17 @@ async def jev_should_close(ticket: Ticket) -> bool:
         return True
     try:
         replies = await env.slack_client.conversations_replies(
-            channel=env.slack_help_channel, ts=ticket.msg_ts, limit=200
+            channel=env.slack_help_channel,
+            ts=ticket.msg_ts,
+            include_all_metadata=True,
+            limit=200,
         )
         thread = [
             {
                 "role": "poster"
                 if m.get("user") == ticket.opened_by.slack_id
+                else "helper"  # macro replies (e.g. ?thread) are posted by the bot
+                if (m.get("metadata") or {}).get("event_type") == "nephthys_macro_reply"
                 else "bot"
                 if m.get("bot_id")
                 else "other",

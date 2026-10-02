@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from datetime import UTC
 
@@ -21,7 +22,6 @@ from nephthys.utils.ticket_methods import delete_message
 from nephthys.utils.ticket_methods import reply_to_ticket
 
 
-NO_CREDIT = "none"
 CREDIT_INSTRUCTIONS = (
     "Pick who gets credit for helping with this ticket. Choose the person who did the "
     "most to answer or solve the poster's question, judged by the substance of their "
@@ -29,10 +29,34 @@ CREDIT_INSTRUCTIONS = (
     "asked; everyone else is a helper or a community member, and community members "
     "are just as eligible as helpers. The poster staying silent, not thanking anyone, "
     "or leaving the channel does NOT mean nobody helped. Ignore replies that add "
-    "nothing (thanks, +1, chatter). Choose 'none' ONLY when the ticket is clearly a "
-    "test, spam or nonsense post, never because an answer was short, partial or "
-    "unconfirmed."
+    "nothing (thanks, +1, chatter). A redirect, link or pointer to the right resource "
+    "(e.g. a form, channel or doc) IS a real answer and deserves credit, even if the "
+    "question was about something other than Hack Club support or the poster never "
+    "replied. If anyone made a genuine attempt to help a real person, pick them."
 )
+# Asked separately from the credit choice: offering "no one" alongside the helpers
+# pulls probability away from real answers, so it is decided here instead.
+JUNK_INSTRUCTIONS = (
+    "Default to genuine. Answer junk ONLY if the original post is itself unmistakably "
+    "a test, spam, gibberish or a joke. Vague, short, off-topic, mistaken-channel, "
+    "advertising, greeting, or poorly worded posts, and posts where a helper replied, "
+    "are genuine."
+)
+# Replies that only manage the thread are not help, so they never count towards credit
+HOUSEKEEPING = re.compile(
+    r"^\s*\?\w+\s*$"  # macro commands like ?resolve
+    r"|marked as resolved"
+    r"|(closing|resolving|resolve|close|mark(ing)?)\b.{0,40}\b(this|it|ticket|thread|post)\b"
+    r".{0,60}(inactiv|resolved|no (response|activity)|days|old|duplicate)"
+    r"|since you last responded|i get it now|has this been solved"
+    r"|did (you|u) get (your|ur) answer"
+    r"|please (thread|keep everything)|thread your messages",
+    re.IGNORECASE,
+)
+JUNK_CRITERIA = {
+    "genuine": "Anything a real person posted hoping for an answer or help, however vague, basic, off-topic or badly asked.",
+    "junk": "Unmistakably a test post (e.g. 'test', 'hello test'), spam, gibberish or a joke with no real question.",
+}
 
 
 async def get_or_create_users(slack_ids: set[str]) -> list[User]:
@@ -110,7 +134,10 @@ async def resolve(
                 author = (metadata.get("event_payload") or {}).get("source_user_id")
             elif not msg.get("bot_id"):
                 author = msg.get("user")
-            if author:
+            if author and (
+                author == ticket.opened_by.slack_id
+                or not HOUSEKEEPING.search(msg.get("text") or "")
+            ):
                 thread.append({"author": author, "text": msg.get("text") or ""})
         opener = ticket.opened_by
         authors = {m["author"] for m in thread} - {opener.slack_id}
@@ -138,24 +165,31 @@ async def resolve(
                     "replies": thread,
                 },
                 questions={
+                    "kind": {
+                        "type": "choice",
+                        "instructions": JUNK_INSTRUCTIONS,
+                        "criteria": JUNK_CRITERIA,
+                    },
                     "credit": {
                         "type": "choice",
                         "instructions": CREDIT_INSTRUCTIONS,
                         "criteria": {
-                            **{
-                                c.slack_id: (
-                                    f"{names[c.slack_id]}: "
-                                    f"{sum(1 for m in thread if m['author'] == c.slack_id)} replies"
-                                )
-                                for c in candidate
-                            },
-                            NO_CREDIT: "No one: only for clearly test, spam or nonsense tickets. Never for a real question.",
+                            c.slack_id: (
+                                f"{names[c.slack_id]}: "
+                                f"{sum(1 for m in thread if m['author'] == c.slack_id)} replies"
+                            )
+                            for c in candidate
                         },
-                    }
+                    },
                 },
             )
             choice = response["answers"]["credit"]["choice"]
-            credit_user = next((c for c in candidate if c.slack_id == choice), None)
+            is_junk = response["answers"]["kind"]["choice"] == "junk"
+            credit_user = (
+                None
+                if is_junk
+                else next((c for c in candidate if c.slack_id == choice), None)
+            )
             jev_decided = True
     except Exception as e:
         logging.error(f"Failed to pick credit user: {e}", exc_info=True)

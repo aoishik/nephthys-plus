@@ -10,11 +10,17 @@ from nephthys.utils.stats import calculate_overall_stats
 from nephthys.utils.stats import leaderboard_name
 
 
+# Slack caps a section field at 2000 chars, so the overall board hides one-off closers
+MIN_OVERALL_CLOSED = 5
+
+
 async def get_leaderboard_components():
     stats = await calculate_overall_stats()
     overall_leaderboard_lines = [
         f"{i + 1}. {leaderboard_name(entry)} - {entry['count']} closed"
-        for i, entry in enumerate(stats.helpers_leaderboard)
+        for i, entry in enumerate(
+            e for e in stats.helpers_leaderboard if e["count"] >= MIN_OVERALL_CLOSED
+        )
     ]
     if not overall_leaderboard_lines:
         overall_leaderboard_str = "_No one's on the board yet!_"
