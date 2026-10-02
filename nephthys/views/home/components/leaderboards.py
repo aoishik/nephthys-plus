@@ -10,22 +10,27 @@ from nephthys.utils.stats import calculate_overall_stats
 from nephthys.utils.stats import leaderboard_name
 
 
-# Slack caps a section field at 2000 chars, so the overall board hides one-off closers
-MIN_OVERALL_CLOSED = 5
+def fit_lines(lines: list[str], limit: int = 1900) -> str:
+    """Joins ranked lines, stopping before the section field's 2000 char cap."""
+    out, size = [], 0
+    for line in lines:
+        size += len(line) + 1
+        if size > limit:
+            break
+        out.append(line)
+    return "\n".join(out)
 
 
 async def get_leaderboard_components():
     stats = await calculate_overall_stats()
     overall_leaderboard_lines = [
         f"{i + 1}. {leaderboard_name(entry)} - {entry['count']} closed"
-        for i, entry in enumerate(
-            e for e in stats.helpers_leaderboard if e["count"] >= MIN_OVERALL_CLOSED
-        )
+        for i, entry in enumerate(stats.helpers_leaderboard)
     ]
     if not overall_leaderboard_lines:
         overall_leaderboard_str = "_No one's on the board yet!_"
     else:
-        overall_leaderboard_str = "\n".join(overall_leaderboard_lines)
+        overall_leaderboard_str = fit_lines(overall_leaderboard_lines)
 
     now = datetime.now().astimezone()
     prev_day_start = now - timedelta(days=1)
@@ -38,7 +43,7 @@ async def get_leaderboard_components():
     if not prev_day_leaderboard_lines:
         prev_day_leaderboard_str = "_No one's on the board yet!_"
     else:
-        prev_day_leaderboard_str = "\n".join(prev_day_leaderboard_lines)
+        prev_day_leaderboard_str = fit_lines(prev_day_leaderboard_lines)
 
     avg_hang_time_str = (
         f"{stats.mean_hang_time_minutes_unresolved:.2f} minutes"
