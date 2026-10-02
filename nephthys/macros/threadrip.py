@@ -1,3 +1,5 @@
+from nephthys.actions.resolve import resolve
+from nephthys.database.enums import TicketStatus
 from nephthys.macros.types import Macro
 from nephthys.utils import prometheus
 from nephthys.utils.env import env
@@ -9,8 +11,8 @@ class ThreadRip(Macro):
 
     async def run(self, ticket, helper, **kwargs):
         """
-        Like ?thread, but nukes the whole thread: deletes the original ticket
-        message and every reply.
+        Like ?thread, but nukes the whole thread: closes the ticket, then deletes
+        the original ticket message and every reply.
         """
         parts = kwargs["text"].split(maxsplit=1)
         if len(parts) < 2:
@@ -21,6 +23,15 @@ class ThreadRip(Macro):
                 text="`?threadrip` needs a reason, e.g. `?threadrip spam`.",
             )
             return
+
+        if ticket.status != TicketStatus.CLOSED:
+            await resolve(
+                ts=ticket.msg_ts,
+                resolver=helper.slack_id,
+                client=env.slack_client,
+                add_reaction=False,
+                send_resolved_message=False,
+            )
 
         await prometheus.delete_thread(
             thread_ts=ticket.msg_ts,

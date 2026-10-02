@@ -31,5 +31,4 @@ class Hackatime(Macro):
             ts=ticket.msg_ts,
             resolver=helper.slack_id,
             client=env.slack_client,
-            send_resolved_message=False,
         )
