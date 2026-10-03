@@ -1,6 +1,9 @@
 import asyncio
 import logging
 
+from blockkit import Actions
+from blockkit import Button
+from blockkit import Section
 from blockkit.core import MessageBlock
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
@@ -42,6 +45,20 @@ async def delete_message(channel_id: str, message_ts: str):
             raise
         except Exception as e:
             raise DeletionError(e)
+
+
+def reopen_blocks(text: str, ticket: Ticket) -> list[MessageBlock]:
+    """The text plus a "Re-open thread" button, for replies that also close the ticket"""
+    return [
+        Section(text),
+        Actions().add_element(
+            Button(
+                text="Re-open thread",
+                action_id="reopen-button",
+                value=f"{ticket.id}",
+            )
+        ),
+    ]
 
 
 async def reply_to_ticket(

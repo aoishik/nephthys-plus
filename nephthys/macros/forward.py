@@ -13,6 +13,7 @@ from nephthys.database.tables import User
 from nephthys.macros.types import Macro
 from nephthys.utils.env import env
 from nephthys.utils.slack_user import get_user_profile
+from nephthys.utils.ticket_methods import reopen_blocks
 from nephthys.utils.ticket_methods import reply_to_ticket
 
 FORWARD_EVENT_TYPE = "nephthys_plus_forward"
@@ -151,12 +152,12 @@ class Forward(Macro):
                 f"p{destination_ts.replace('.', '')}"
             )
             helper_profile = await get_user_profile(helper.slack_id)
+            forwarded_text = f"We’ve forwarded your question to <#{destination_channel}>, See the thread here: <{destination_link}|message>"
             await reply_to_ticket(
                 ticket=ticket,
                 client=client,
-                text=(
-                    f"We’ve forwarded your question to <#{destination_channel}>, See the thread here: <{destination_link}|message>"
-                ),
+                text=forwarded_text,
+                blocks=reopen_blocks(forwarded_text, ticket),
                 username=helper_profile.display_name(),
                 icon_url=helper_profile.profile_pic_512x(),
                 metadata={

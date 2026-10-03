@@ -3,6 +3,7 @@ from nephthys.database.tables import Ticket
 from nephthys.database.tables import User
 from nephthys.utils.env import env
 from nephthys.utils.slack_user import get_user_profile
+from nephthys.utils.ticket_methods import reopen_blocks
 from nephthys.utils.ticket_methods import reply_to_ticket
 
 
@@ -83,6 +84,7 @@ class ReplyMacro(Macro):
 
         await reply_to_ticket(
             text=reply_text,
+            blocks=reopen_blocks(reply_text, ticket) if self.resolve_ticket else None,
             ticket=ticket,
             client=env.slack_client,
             username=username,
@@ -95,4 +97,5 @@ class ReplyMacro(Macro):
                 ts=ticket.msg_ts,
                 resolver=helper.slack_id,
                 client=env.slack_client,
+                send_resolved_message=False,
             )

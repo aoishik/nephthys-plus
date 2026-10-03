@@ -3,6 +3,7 @@ from nephthys.database.tables import User
 from nephthys.macros.types import Macro
 from nephthys.utils.env import env
 from nephthys.utils.slack_user import get_user_profile
+from nephthys.utils.ticket_methods import reopen_blocks
 from nephthys.utils.ticket_methods import reply_to_ticket
 
 
@@ -19,8 +20,10 @@ class Hackatime(Macro):
             return
         user = await get_user_profile(sender.slack_id)
         username, icon_url = await self.helper_identity(helper)
+        text = env.transcript.hackatime_macro.replace("(user)", user.display_name())
         await reply_to_ticket(
-            text=env.transcript.hackatime_macro.replace("(user)", user.display_name()),
+            text=text,
+            blocks=reopen_blocks(text, ticket),
             ticket=ticket,
             client=env.slack_client,
             username=username,
@@ -31,4 +34,5 @@ class Hackatime(Macro):
             ts=ticket.msg_ts,
             resolver=helper.slack_id,
             client=env.slack_client,
+            send_resolved_message=False,
         )
