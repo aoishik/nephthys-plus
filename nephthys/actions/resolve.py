@@ -142,6 +142,8 @@ async def resolve(
         opener = ticket.opened_by
         authors = {m["author"] for m in thread} - {opener.slack_id}
         candidate = await get_or_create_users(authors)
+        if not env.credit_non_helpers:
+            candidate = [c for c in candidate if c.helper]
         if candidate:
             names = {
                 c.slack_id: f"{c.username or c.slack_id} "

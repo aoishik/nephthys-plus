@@ -133,6 +133,7 @@ class Environment:
         self.daily_summary_max_tickets = int(
             os.environ.get("DAILY_SUMMARY_MAX_TICKETS", 50)
         )
+        self.credit_non_helpers = get_environ_bool("CREDIT_NON_HELPERS", default=True)
         self.enable_feedback = get_environ_bool("ENABLE_FEEDBACK", default=False)
         self.app_title = os.environ.get("APP_TITLE", "helper heidi")
         self.hca = create_hca_config(self.environment)
