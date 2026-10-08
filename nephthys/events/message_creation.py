@@ -403,7 +403,7 @@ async def generate_ticket_title(text: str) -> str | None:
         response: ChatCompletion = await ai_client.chat.completions.create(
             model=model,
             reasoning_effort="low",
-            max_completion_tokens=5000
+            max_completion_tokens=5000,
             messages=[
                 {
                     "role": "system",
