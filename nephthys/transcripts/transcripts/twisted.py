@@ -12,6 +12,9 @@ class Twisted(Transcript):
     team_channel: str = "C0BKH9PQLPP"
 
     faq_link: str = "https://hackclub.enterprise.slack.com/docs/T0266FRGM/F0BKPDUDTGV"
+    faq_canvas_id: str | None = "F0BKPDUDTGV"
+    faq_events_question: str | None = "Support for Twisted YSWS"
+    
     first_ticket_create: str = f"""
 Heya (user)! Welcome to the Twisted help channel! Someone from our team will be here to help you out soon.
 If you haven't already, have a read through <{faq_link}|*the FAQ*> – it will likely contain the answer you're looking for!
